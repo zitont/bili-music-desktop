@@ -1,0 +1,17 @@
+:root {
+    --bPageBgColor: #f5f5f5;
+    --bTextColor: #000;
+    --bBgColor: var(--el-bg-color);
+    --bBorderColor: var(--el-input-border-color);
+    --bDialogBgColor: var(--el-dialog-bg-color);
+  
+    --roleHeaderBgColor: #f1f1f1;
+    --selectRowBgColor: #e8f4ff;
+  }
+  
+  html.dark {
+    --bPageBgColor: #0a0a0a;
+    --bTextColor: #fff;
+    --roleHeaderBgColor: #0e0e0e;
+    --selectRowBgColor: #414243;
+  }
