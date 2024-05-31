@@ -1,5 +1,4 @@
 const { app, BrowserWindow, ipcMain, globalShortcut } = require('electron');
-const { autoUpdater } = require('electron-updater')
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 const createBiliWindow = require('./windows').createBiliWindow;
@@ -41,12 +40,10 @@ function createMainWindow() {
   });
 
   // 加载本地服务器上的页面
-if(app.isPackaged){
+
+  // win.loadURL('http://localhost:3001');
+
   win.loadFile('dist/index.html');
-}else{
-  win.loadURL('http://localhost:3001');
-}
-  // win.loadFile('dist/index.html');
 
   globalShortcut.register('Ctrl+Shift+D', () => {
     win.webContents.openDevTools()
@@ -399,7 +396,7 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       mainWindow = createMainWindow();
-      biliWindow = createBiliWindow();
+       biliWindow = createBiliWindow();
       biliWindow2 = createBiliWindow2();
     }
   });
