@@ -15,13 +15,33 @@ function getDbPath() {
 }
 
 /**
+ * 检查并确保所有表已创建
+ */
+function ensureTables() {
+  const requiredTables = ['video_lists', 'video', 'videolist_videos'];
+  const existingTables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(r => r.name);
+  const missingTables = requiredTables.filter(t => !existingTables.includes(t));
+  if (missingTables.length > 0) {
+    console.warn('数据库缺少表:', missingTables, '，重新创建');
+    createTables();
+  } else {
+    const defaultPlaylist = db.prepare('SELECT * FROM video_lists WHERE videolists_id = 1').get();
+    if (!defaultPlaylist) {
+      db.prepare('INSERT INTO video_lists (videolists_id, videolist_name) VALUES (1, ?)').run('默认收藏夹');
+    }
+  }
+}
+
+/**
  * 初始化数据库连接
  */
 function initDatabase() {
   const dbPath = getDbPath();
+  console.log('初始化数据库:', dbPath);
   db = new Database(dbPath);
   db.pragma('journal_mode = WAL');
   createTables();
+  ensureTables();
 }
 
 /**
@@ -62,11 +82,6 @@ function createTables() {
     )
   `);
 
-  // 确保默认歌单存在
-  const defaultPlaylist = db.prepare('SELECT * FROM video_lists WHERE videolists_id = 1').get();
-  if (!defaultPlaylist) {
-    db.prepare('INSERT INTO video_lists (videolists_id, videolist_name) VALUES (1, ?)').run('默认收藏夹');
-  }
 }
 
 /**
@@ -91,6 +106,16 @@ function insert(sql, params) {
 }
 
 /**
+ * 执行事务
+ * @param {Function} callback - 事务回调
+ * @returns {any} 事务返回值
+ */
+function runTransaction(callback) {
+  const transaction = db.transaction(callback);
+  return transaction();
+}
+
+/**
  * 关闭数据库连接
  */
 function closeDatabase() {
@@ -102,7 +127,9 @@ function closeDatabase() {
 
 module.exports = {
   initDatabase,
+  ensureTables,
   executeQuery,
   insert,
+  runTransaction,
   closeDatabase,
 };

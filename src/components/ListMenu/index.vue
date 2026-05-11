@@ -15,25 +15,15 @@
     <div class="nav-divider"></div>
 
     <div class="playlist-section">
-      <n-popover placement="right" trigger="hover" :width="180" :show-arrow="false">
-        <template #trigger>
-          <div
-            class="nav-item"
-            :class="{ active: currentRoute === '/increase' }"
-            @click="increase"
-          >
-            <div class="nav-indicator" v-if="currentRoute === '/increase'"></div>
-            <svg-icon iconName="icon-tianjia" :color="currentRoute === '/increase' ? '#c9a55c' : '#8a8890'"></svg-icon>
-            <span class="nav-label">添加</span>
-          </div>
-        </template>
-        <div class="popover-content">
-          <div class="popover-title">添加</div>
-          <div class="popover-item" @click="increase">
-            <span>添加视频</span>
-          </div>
-        </div>
-      </n-popover>
+      <div
+        class="nav-item"
+        :class="{ active: currentRoute === '/increase' }"
+        @click="increase"
+      >
+        <div class="nav-indicator" v-if="currentRoute === '/increase'"></div>
+        <svg-icon iconName="icon-tianjia" :color="currentRoute === '/increase' ? '#c9a55c' : '#8a8890'"></svg-icon>
+        <span class="nav-label">添加</span>
+      </div>
 
       <div
         class="nav-item"
@@ -191,29 +181,5 @@ function settings() {
   color: #c9a55c;
 }
 
-.popover-content {
-  padding: 4px 0;
-}
 
-.popover-title {
-  font-size: 10px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.3);
-  padding: 4px 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.popover-item {
-  padding: 6px 12px;
-  font-size: 13px;
-  cursor: pointer;
-  border-radius: 6px;
-  transition: background var(--duration-fast) var(--ease-in-out);
-  color: #e8e6e0;
-}
-
-.popover-item:hover {
-  background: rgba(201, 165, 92, 0.06);
-}
 </style>

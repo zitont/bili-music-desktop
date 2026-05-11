@@ -257,7 +257,6 @@ async function setPlayerVolume(volume) {
  * @returns {Promise<Object>}
  */
 async function getVideoInfo(VideoBvid) {
-  // 清理旧窗口
   if (biliWindow2 && !biliWindow2.isDestroyed()) {
     biliWindow2.destroy();
     biliWindow2 = null;
@@ -277,16 +276,29 @@ async function getVideoInfo(VideoBvid) {
     const code = `
       (() => {
         try {
-          const bvid = __INITIAL_STATE__.videoData.bvid;
+          if (typeof __INITIAL_STATE__ !== 'undefined' && __INITIAL_STATE__) {
+            __INITIAL_STATE__.continuousPlay = false;
+          }
+          const videoData = __INITIAL_STATE__.videoData;
+          if (!videoData || !videoData.bvid) return null;
+          const bvid = videoData.bvid;
           const videourl = 'https://www.bilibili.com/video/' + bvid;
-          const videotitle = __INITIAL_STATE__.videoData.title;
-          const originalPic = __INITIAL_STATE__.videoData.pic;
+          const videotitle = videoData.title || '';
+          const originalPic = videoData.pic || '';
           const videopic = originalPic.startsWith('http://')
             ? originalPic.replace('http://', 'https://')
             : originalPic;
-          const videoduration = document.getElementsByTagName('video')[0]?.duration || 0;
-          const upname = __INITIAL_STATE__.upData.name;
-          const uphomepage = 'https://space.bilibili.com/' + __INITIAL_STATE__.upData.mid;
+          let videoduration = 0;
+          const videoEl = document.getElementsByTagName('video')[0];
+          if (videoEl && !isNaN(videoEl.duration) && isFinite(videoEl.duration)) {
+            videoduration = videoEl.duration;
+          } else if (videoData.duration) {
+            videoduration = videoData.duration;
+          }
+          const upname = __INITIAL_STATE__.upData?.name || '';
+          const uphomepage = __INITIAL_STATE__.upData?.mid
+            ? 'https://space.bilibili.com/' + __INITIAL_STATE__.upData.mid
+            : '';
           return { bvid, videourl, videotitle, videopic, videoduration, upname, uphomepage };
         } catch (e) {
           return null;
@@ -294,23 +306,54 @@ async function getVideoInfo(VideoBvid) {
       })()
     `;
 
-    biliWindow2.webContents.executeJavaScript(code, true)
-      .then((videoInfo) => {
+    const onLoad = () => {
+      if (!biliWindow2 || biliWindow2.isDestroyed()) {
         clearTimeout(timeout);
-        if (biliWindow2 && !biliWindow2.isDestroyed()) {
-          biliWindow2.destroy();
-          biliWindow2 = null;
+        reject(new Error('Window destroyed before page load'));
+        return;
+      }
+      setTimeout(() => {
+        if (!biliWindow2 || biliWindow2.isDestroyed()) {
+          clearTimeout(timeout);
+          reject(new Error('Window destroyed before JS execution'));
+          return;
         }
-        resolve(videoInfo);
-      })
-      .catch((error) => {
-        clearTimeout(timeout);
-        if (biliWindow2 && !biliWindow2.isDestroyed()) {
-          biliWindow2.destroy();
-          biliWindow2 = null;
-        }
-        reject(error);
-      });
+        biliWindow2.webContents.executeJavaScript(code, true)
+          .then((videoInfo) => {
+            clearTimeout(timeout);
+            if (biliWindow2 && !biliWindow2.isDestroyed()) {
+              biliWindow2.destroy();
+              biliWindow2 = null;
+            }
+            resolve(videoInfo);
+          })
+          .catch((error) => {
+            clearTimeout(timeout);
+            if (biliWindow2 && !biliWindow2.isDestroyed()) {
+              biliWindow2.destroy();
+              biliWindow2 = null;
+            }
+            reject(error);
+          });
+      }, 1500);
+    };
+
+    const onFail = (_, errorCode, errorDescription) => {
+      clearTimeout(timeout);
+      if (biliWindow2 && !biliWindow2.isDestroyed()) {
+        biliWindow2.destroy();
+        biliWindow2 = null;
+      }
+      reject(new Error('Page load failed: ' + errorDescription));
+    };
+
+    biliWindow2.webContents.once('did-finish-load', onLoad);
+    biliWindow2.webContents.once('did-fail-load', onFail);
+
+    biliWindow2.webContents.once('destroyed', () => {
+      clearTimeout(timeout);
+      reject(new Error('Window destroyed'));
+    });
   });
 }
 
@@ -337,10 +380,15 @@ async function getVideoDuration() {
 /**
  * 插入视频信息到数据库
  * @param {Object} videoInfo - 视频信息
- * @returns {Promise<boolean>}
+ * @returns {Promise<{success: boolean, error?: string}>}
  */
 async function InsertVideoinfo(videoInfo) {
-  const db = require('./db');
+  if (!videoInfo || typeof videoInfo !== 'object') {
+    return { success: false, error: '参数无效：videoInfo 不是对象' };
+  }
+  if (!videoInfo.bvid) {
+    return { success: false, error: '缺少必填字段：bvid' };
+  }
 
   const sql1 = `INSERT OR REPLACE INTO video (
     video_bvid, video_title, video_img_url, video_startTime,
@@ -350,17 +398,40 @@ async function InsertVideoinfo(videoInfo) {
   const sql2 = `INSERT OR REPLACE INTO videolist_videos (videolist_id, video_bvid) VALUES (?, ?)`;
 
   const params1 = [
-    videoInfo.bvid, videoInfo.videotitle, videoInfo.videopic,
-    videoInfo.videostart, videoInfo.videoend, videoInfo.videoduration,
-    videoInfo.videourl, videoInfo.upname, videoInfo.uphomepage
+    videoInfo.bvid,
+    videoInfo.videotitle || '',
+    videoInfo.videopic || '',
+    typeof videoInfo.videostart === 'number' ? videoInfo.videostart : 0,
+    typeof videoInfo.videoend === 'number' ? videoInfo.videoend : 0,
+    typeof videoInfo.videoduration === 'number' ? videoInfo.videoduration : 0,
+    videoInfo.videourl || '',
+    videoInfo.upname || '',
+    videoInfo.uphomepage || ''
   ];
-  const params2 = [videoInfo.videolist_id, videoInfo.bvid];
+  const params2 = [Number(videoInfo.videolist_id) || 1, videoInfo.bvid];
 
   try {
-    db.insert(sql1, params1);
-    db.insert(sql2, params2);
+    dbOperations.runTransaction(() => {
+      dbOperations.insert(sql1, params1);
+      dbOperations.insert(sql2, params2);
+    });
     return { success: true };
   } catch (e) {
+    if (e.message && e.message.includes('no such table')) {
+      console.warn('数据库表缺失，尝试重新创建');
+      try {
+        dbOperations.ensureTables();
+        dbOperations.runTransaction(() => {
+          dbOperations.insert(sql1, params1);
+          dbOperations.insert(sql2, params2);
+        });
+        return { success: true };
+      } catch (retryError) {
+        console.error('InsertVideoinfo retry error:', retryError);
+        return { success: false, error: retryError.message };
+      }
+    }
+    console.error('InsertVideoinfo error:', e);
     return { success: false, error: e.message };
   }
 }
@@ -574,7 +645,14 @@ ipcMain.handle('system:getInfo', () => {
 // 数据库操作
 ipcMain.handle('db:getPlaylists', async () => {
   try {
-    return await dbOperations.executeQuery('SELECT * FROM video_lists', []);
+    const sql = `
+      SELECT vl.*, COUNT(vlv.video_bvid) AS video_count
+      FROM video_lists vl
+      LEFT JOIN videolist_videos vlv ON vl.videolists_id = vlv.videolist_id
+      GROUP BY vl.videolists_id
+      ORDER BY vl.videolists_id
+    `;
+    return await dbOperations.executeQuery(sql, []);
   } catch (error) {
     console.error('Error fetching playlists:', error);
     return [];
@@ -602,7 +680,12 @@ ipcMain.handle('db:getPlaylistVideos', async (event, listsid) => {
 });
 
 ipcMain.handle('db:addVideo', async (event, videoInfo) => {
-  return InsertVideoinfo(videoInfo);
+  try {
+    return await InsertVideoinfo(videoInfo);
+  } catch (error) {
+    console.error('Error in db:addVideo handler:', error);
+    return { success: false, error: '内部错误：' + error.message };
+  }
 });
 
 // 歌单操作

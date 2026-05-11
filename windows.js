@@ -105,23 +105,9 @@ function createBiliWindow2(bvid) {
   const biliWindow2 = new BrowserWindow({
     width: 1000,
     height: 600,
-      // frame: false,
-      show: false,
+    show: false,
   });
   biliWindow2.loadURL('https://www.bilibili.com/video/'+bvid);
-  // biliWindow2.webContents.openDevTools()
-  // 处理窗口关闭事件
-  // biliWindow2.on('closed', () => {
-  //   biliWindow2 = null;
-  // });
-//   biliWindow2.webContents.executeJavaScript(`
-//   __INITIAL_STATE__.continuousPlay = false;
-//   const player = document.querySelector('video');
-//   player.pause();
-// `);
-biliWindow2.webContents.executeJavaScript(`
-__INITIAL_STATE__.continuousPlay = false;
-`);
   return biliWindow2;
 }
 

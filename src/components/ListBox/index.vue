@@ -135,7 +135,7 @@ const queriedData = ref<any>(null);
 const form = reactive({
   bvid: '',
   title: '',
-  videolist_id: '',
+  videolist_id: null as number | null,
   imageurl: '',
   upname: '',
   timemax: 100,
@@ -204,7 +204,7 @@ function submit() {
   const videoInfoObject = {
     bvid: d.bvid || '',
     videotitle: d.videotitle || '',
-    videolist_id: Number(form.videolist_id) || 1,
+    videolist_id: form.videolist_id || 1,
     videopic: d.videopic || '',
     upname: d.upname || '',
     uphomepage: d.uphomepage || '',
@@ -257,8 +257,8 @@ onMounted(() => {
 watch(
   () => drawer.value,
   (isOpen) => {
-    if (isOpen && menuItems.value.length > 0 && !form.videolist_id) {
-      form.videolist_id = String(menuItems.value[0].videolists_id);
+    if (isOpen && menuItems.value.length > 0 && form.videolist_id === null) {
+      form.videolist_id = menuItems.value[0].videolists_id;
     }
   }
 );

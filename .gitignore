@@ -21,6 +21,9 @@ dist-electron
 # 数据库文件
 *.db
 *.db-journal
+*.db-shm
+*.db-wal
+data/
 
 # 构建产物
 build/

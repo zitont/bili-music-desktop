@@ -27,7 +27,7 @@ interface ElectronAPI {
   // 数据库操作
   VideoGetLists: () => Promise<any[]>;
   VideoGetListsID: (listsid: number) => Promise<any[]>;
-  InsertVideoinfo: (videoinfo: any) => Promise<boolean>;
+  InsertVideoinfo: (videoinfo: any) => Promise<{ success: boolean; error?: string }>;
 
   // 歌单操作
   createPlaylist: (name: string) => Promise<boolean>;
