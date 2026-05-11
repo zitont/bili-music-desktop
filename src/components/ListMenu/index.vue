@@ -1,92 +1,219 @@
 <template>
-  <div>
-    <el-row :gutter="0" class="listbox">
-      <el-col :span="100" class="log">
-        <div class="grid-content ep-bg-purple">
-          log
-        </div>
-      </el-col>
-      <el-col :span="100" class="main">
-        <div class="set">
-          <el-popover placement="right" :width="200" trigger="hover">
-            <p>收藏夹</p>
-            <div class="collection" v-for="(item, index) in menuItems" :key="item.videolists_id"
-              @click="listid(item.videolists_id)">
-              <span>{{ item.videolist_name }}</span>
-            </div>
-            <template #reference>
-              <el-button icon="Memo" text size="large" @click="mainbox"></el-button>
-            </template>
-          </el-popover>
-        </div>
-        <div class="set">
-          <el-button icon="Plus" text size="large" @click="increase"></el-button>
+  <div class="list-menu">
+    <div class="nav-section">
+      <div
+        class="nav-item"
+        :class="{ active: currentRoute === '/' }"
+        @click="mainbox"
+      >
+        <div class="nav-indicator" v-if="currentRoute === '/'"></div>
+        <svg-icon iconName="icon-shoucangjia" :color="currentRoute === '/' ? '#c9a55c' : '#8a8890'"></svg-icon>
+        <span class="nav-label">收藏</span>
+      </div>
+    </div>
 
-        </div>
-        <div class="set">
-          <el-button icon="Plus" text size="large" @click="increase"></el-button>
+    <div class="nav-divider"></div>
 
+    <div class="playlist-section">
+      <n-popover placement="right" trigger="hover" :width="180" :show-arrow="false">
+        <template #trigger>
+          <div
+            class="nav-item"
+            :class="{ active: currentRoute === '/increase' }"
+            @click="increase"
+          >
+            <div class="nav-indicator" v-if="currentRoute === '/increase'"></div>
+            <svg-icon iconName="icon-tianjia" :color="currentRoute === '/increase' ? '#c9a55c' : '#8a8890'"></svg-icon>
+            <span class="nav-label">添加</span>
+          </div>
+        </template>
+        <div class="popover-content">
+          <div class="popover-title">添加</div>
+          <div class="popover-item" @click="increase">
+            <span>添加视频</span>
+          </div>
         </div>
-      </el-col>
-      <el-col :span="100" class="froot">
-        <div class="set">
-          <el-button icon="Operation" size="large" text></el-button>
-        </div>
-      </el-col>
-    </el-row>
+      </n-popover>
+
+      <div
+        class="nav-item"
+        :class="{ active: currentRoute === '/playlist' }"
+        @click="playlist"
+      >
+        <div class="nav-indicator" v-if="currentRoute === '/playlist'"></div>
+        <svg-icon iconName="icon-liebiao" :color="currentRoute === '/playlist' ? '#c9a55c' : '#8a8890'"></svg-icon>
+        <span class="nav-label">歌单</span>
+      </div>
+    </div>
+
+    <div class="nav-spacer"></div>
+
+    <div class="nav-section bottom">
+      <div
+        class="nav-item"
+        :class="{ active: currentRoute === '/settings' }"
+        @click="settings"
+      >
+        <div class="nav-indicator" v-if="currentRoute === '/settings'"></div>
+        <svg-icon iconName="icon-1shezhi-1" :color="currentRoute === '/settings' ? '#c9a55c' : '#8a8890'"></svg-icon>
+        <span class="nav-label">设置</span>
+      </div>
+    </div>
   </div>
-
 </template>
 
-<script setup>
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router';
-const menuItems = ref([]);
+<script setup lang="ts">
+import { computed } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
+
 const router = useRouter();
+const route = useRoute();
+
+const currentRoute = computed(() => route.path);
+
 function increase() {
   router.push('/increase');
 }
+
 function mainbox() {
   router.push('/');
 }
-onMounted(() => {
-  window.electronAPI.VideoGetLists().then((lists) => {
-    menuItems.value = lists; // 更新视频列表的响应式变量
 
-  });
-});
+function playlist() {
+  router.push('/playlist');
+}
+
+function settings() {
+  router.push('/settings');
+}
 </script>
 
-<style>
-.log.el-col {
-  height: 50px;
+<style scoped>
+.list-menu {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: linear-gradient(180deg, #0e0e12 0%, #0a0a0e 100%);
+  padding: 6px 0;
 }
 
-.main.el-col {
-  height: 600px;
+.nav-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 0 10px;
 }
 
-.froot.el-col {
-  height: 53px;
+.nav-section.bottom {
+  margin-top: auto;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
 }
 
-.listbox.el-row {
-  display: block;
+.playlist-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 0 10px;
 }
 
-.el-col {
-  border-radius: 4px;
-  background-color: rgba(82, 92, 92, 0.571);
+.nav-divider {
+  height: 1px;
+  margin: 6px 16px;
+  background: rgba(255, 255, 255, 0.04);
 }
 
-.set .el-icon svg {
-  height: 25px;
-  width: 2em;
+.nav-spacer {
+  flex: 1;
 }
 
-.grid-content {
-  border-radius: 4px;
-  min-height: 36px;
-  /* background-color: aqua; */
+.nav-item {
+  width: 52px;
+  height: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 18px;
+  transition: all var(--duration-fast) var(--ease-in-out);
+  position: relative;
+}
+
+.nav-item:hover {
+  background: rgba(201, 165, 92, 0.06);
+}
+
+.nav-item:hover :deep(.svg-icon) {
+  color: #e8e6e0;
+}
+
+.nav-item:active {
+  transform: scale(0.93);
+}
+
+.nav-item.active {
+  background: rgba(201, 165, 92, 0.08);
+}
+
+.nav-item.active :deep(.svg-icon) {
+  color: #c9a55c;
+}
+
+.nav-indicator {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 20px;
+  background: #c9a55c;
+  border-radius: 0 2px 2px 0;
+}
+
+.nav-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: #4a4854;
+  line-height: 1;
+  transition: color var(--duration-fast) var(--ease-in-out);
+}
+
+.nav-item:hover .nav-label {
+  color: #8a8890;
+}
+
+.nav-item.active .nav-label {
+  color: #c9a55c;
+}
+
+.popover-content {
+  padding: 4px 0;
+}
+
+.popover-title {
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.3);
+  padding: 4px 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.popover-item {
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background var(--duration-fast) var(--ease-in-out);
+  color: #e8e6e0;
+}
+
+.popover-item:hover {
+  background: rgba(201, 165, 92, 0.06);
 }
 </style>

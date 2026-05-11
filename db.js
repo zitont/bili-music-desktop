@@ -1,107 +1,108 @@
 const { app } = require('electron');
 const path = require('path');
-const sqlite3 = require('sqlite3').verbose();
-
-let filePath;
-const isPackaged = app.isPackaged;
-
-if (isPackaged) {
-  // 当应用被打包时，数据库通常位于资源的文件夹中
-  filePath = path.resolve('./resources/data/bilibili.db')
-} else {
-  // 在开发环境中，数据库可能位于项目的data文件夹中
-  filePath = path.join(__dirname, 'data', 'bilibili.db');
-}
-
-const DB_PATH = filePath;
-console.log(filePath);
+const Database = require('better-sqlite3');
 
 let db;
 
+/**
+ * 获取数据库文件路径
+ */
+function getDbPath() {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, 'data', 'bilibili.db');
+  }
+  return path.join(__dirname, 'data', 'bilibili.db');
+}
 
 /**
- * 初始化数据库
- *
- * @returns Promise<sqlite3.Database> 返回连接后的sqlite3.Database实例
+ * 初始化数据库连接
  */
-async function initDatabase() {
-    return new Promise((resolve, reject) => {
-      db = new sqlite3.Database(DB_PATH, (err) => {
-        if (err) {
-          reject(err);
-        } else {
-          console.log('Connected to the SQLite database.');
-          resolve(db);
-        }
-      });
-    });
-  }
-  
+function initDatabase() {
+  const dbPath = getDbPath();
+  db = new Database(dbPath);
+  db.pragma('journal_mode = WAL');
+  createTables();
+}
 
-  
-  /**
-   * 执行SQL查询并返回结果
-   *
-   * @param sql SQL查询语句
-   * @param params 查询参数
-   * @returns 返回一个Promise对象，解析为查询结果数组或拒绝为错误对象
-   */
-  async function executeQuery(sql, params) {
-    return new Promise((resolve, reject) => {
-      db.all(sql, params, (err, rows) => {
-        if (err) {
-          reject(err);
-        } else {
-          console.log('Query executed successfully.');
-          resolve(rows);
-        }
-      });
-    });
-  }
 /**
- * 插入数据到数据库
- *
- * @param sql SQL语句
- * @param params SQL语句参数
- * @returns 返回Promise对象，表示插入操作的结果
+ * 创建数据库表
  */
-  async function insert(sql, params) {
-    return new Promise((resolve, reject) => {
-      db.run(sql, params, function (err) {
-        if (err) {
-          reject(err);
-        } else {
-          console.log('Insert executed successfully.');
-          resolve();
-        }
-      });
-    });
-  }
+function createTables() {
+  // 歌单表
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS video_lists (
+      videolists_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      videolist_name TEXT NOT NULL
+    )
+  `);
 
-  
-  /**
-   * 关闭数据库连接
-   *
-   * @returns Promise<void>
-   */
-  async function closeDatabase() {
-    return new Promise((resolve, reject) => {
-      if (db) {
-        db.close((err) => {
-          if (err) {
-            reject(err);
-          } else {
-            console.log('Database connection closed.');
-            resolve();
-          }
-        });
-      }
-    });
-  }
+  // 视频表
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS video (
+      video_bvid TEXT PRIMARY KEY,
+      video_title TEXT,
+      video_img_url TEXT,
+      video_startTime REAL DEFAULT 0,
+      video_endtime REAL DEFAULT 0,
+      video_duration REAL DEFAULT 0,
+      video_url TEXT,
+      up_name TEXT,
+      up_home TEXT
+    )
+  `);
 
-  module.exports = {
-    initDatabase,
-    executeQuery,
-    closeDatabase,
-    insert,
-  };
+  // 歌单-视频关联表
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS videolist_videos (
+      videolist_id INTEGER,
+      video_bvid TEXT,
+      PRIMARY KEY (videolist_id, video_bvid),
+      FOREIGN KEY (videolist_id) REFERENCES video_lists(videolists_id),
+      FOREIGN KEY (video_bvid) REFERENCES video(video_bvid)
+    )
+  `);
+
+  // 确保默认歌单存在
+  const defaultPlaylist = db.prepare('SELECT * FROM video_lists WHERE videolists_id = 1').get();
+  if (!defaultPlaylist) {
+    db.prepare('INSERT INTO video_lists (videolists_id, videolist_name) VALUES (1, ?)').run('默认收藏夹');
+  }
+}
+
+/**
+ * 执行查询并返回结果
+ * @param {string} sql - SQL 查询语句
+ * @param {Array} params - 查询参数
+ * @returns {Array} 查询结果
+ */
+function executeQuery(sql, params) {
+  const stmt = db.prepare(sql);
+  return stmt.all(...params);
+}
+
+/**
+ * 执行插入操作
+ * @param {string} sql - SQL 插入语句
+ * @param {Array} params - 参数
+ */
+function insert(sql, params) {
+  const stmt = db.prepare(sql);
+  return stmt.run(...params);
+}
+
+/**
+ * 关闭数据库连接
+ */
+function closeDatabase() {
+  if (db) {
+    db.close();
+    db = null;
+  }
+}
+
+module.exports = {
+  initDatabase,
+  executeQuery,
+  insert,
+  closeDatabase,
+};

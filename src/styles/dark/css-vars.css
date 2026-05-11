@@ -1,17 +1,83 @@
 :root {
-    --bPageBgColor: #f5f5f5;
-    --bTextColor: #000;
-    --bBgColor: var(--el-bg-color);
-    --bBorderColor: var(--el-input-border-color);
-    --bDialogBgColor: var(--el-dialog-bg-color);
-  
-    --roleHeaderBgColor: #f1f1f1;
-    --selectRowBgColor: #e8f4ff;
-  }
-  
-  html.dark {
-    --bPageBgColor: #0a0a0a;
-    --bTextColor: #fff;
-    --roleHeaderBgColor: #0e0e0e;
-    --selectRowBgColor: #414243;
-  }
+  --bPageBgColor: #f5f5f5;
+  --bTextColor: #000;
+  --bBgColor: #ffffff;
+  --bBorderColor: #dcdfe6;
+  --bDialogBgColor: #ffffff;
+  --roleHeaderBgColor: #f1f1f1;
+  --selectRowBgColor: #e8f4ff;
+}
+
+html.dark {
+  /* 颜色系统 */
+  --bPageBgColor: #08080a;
+  --bTextColor: #e8e6e0;
+  --bBgColor: #16161c;
+  --bBorderColor: rgba(255, 255, 255, 0.06);
+  --bDialogBgColor: #1c1c24;
+  --roleHeaderBgColor: #101014;
+  --selectRowBgColor: rgba(201, 165, 92, 0.1);
+
+  /* 主强调色：琥珀金 */
+  --color-primary: #c9a55c;
+  --color-primary-hover: #dbb978;
+  --color-primary-pressed: #a8873e;
+  --color-primary-glow: rgba(201, 165, 92, 0.15);
+
+  /* 次强调色 */
+  --color-secondary: #8b5cf6;
+  --color-danger: #ef4444;
+  --color-success: #22c55e;
+
+  /* 表面色层级 */
+  --surface-0: #08080a;
+  --surface-1: #101014;
+  --surface-2: #16161c;
+  --surface-3: #1c1c24;
+
+  /* 文字色 */
+  --text-primary: #e8e6e0;
+  --text-secondary: #8a8890;
+  --text-tertiary: #4a4854;
+
+  /* 字体系统 */
+  --font-family: 'Inter', 'SF Pro Display', -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-display: 700 28px/1.2 var(--font-family);
+  --font-heading: 600 20px/1.3 var(--font-family);
+  --font-subheading: 600 15px/1.4 var(--font-family);
+  --font-body: 400 13px/1.5 var(--font-family);
+  --font-caption: 500 11px/1.4 var(--font-family);
+  --font-micro: 500 10px/1.3 var(--font-family);
+
+  /* 间距系统 */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* 阴影系统 */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 20px rgba(201, 165, 92, 0.15);
+  --shadow-inner: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+
+  /* 圆角系统 */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* 动画系统 */
+  --duration-fast: 120ms;
+  --duration-normal: 200ms;
+  --duration-slow: 350ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+}

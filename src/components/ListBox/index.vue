@@ -1,108 +1,137 @@
 <template>
-  <el-drawer v-model="drawer" title="添加视频" :with-header="false">
-    <span>添加视频</span>
-    <div class="demo-drawer__content">
-      <el-form :model="form" label-width="auto">
-      <el-form-item label="视频BVID">
-        <el-input v-model="form.bvid" placeholder="请输入视频BVID"></el-input>
-        <el-button type="primary" @click="SearchVideo">查询</el-button>
-      </el-form-item>
-        <el-form-item label="视频标题">
-          <el-input v-model="form.title" placeholder="请输入视频标题"></el-input>
-        </el-form-item>
-        <el-form-item label="视频UP">
-          <el-input v-model="form.upname" placeholder="请输入视频标题"></el-input>
-        </el-form-item>
-        <el-form-item label="UP主页">
-          <el-link type="primary" :href="form.uphomepage" target="_blank">{{ form.uphomepage }}</el-link>
-        </el-form-item>
-        <el-form-item label="视频地址">
-          <el-link type="primary" :href="form.videourl" target="_blank">{{ form.videourl }}</el-link>
-        </el-form-item>
-        <el-form-item label="视频封面">
-          <el-image style="width: 180px; height: 100px" :src="form.imageurl" fill="fit" />
-        </el-form-item>
-        <el-form-item label="收藏夹">
-          <el-select v-model="form.videolist_id" placeholder="请选择收藏夹" v-for="(item, index) in menuItems">
-            <el-option :label="item.videolist_name" :value="item.videolists_id" />
-            <!-- <el-option label="Area2" value="beijing" /> -->
-          </el-select>
-        </el-form-item>
-        <el-form-item label="时间选择">
-          <el-slider v-model="form.value" range :max="form.timemax"/>
-        </el-form-item>
-      </el-form>
-      <div class="demo-drawer__footer">
-        <el-button>取消</el-button>
-        <el-button type="primary" @click="submit">
-          提交
-        </el-button>
+  <div class="list-box-wrapper">
+  <!-- 添加视频抽屉 -->
+  <n-drawer v-model:show="drawer" placement="right" width="400">
+    <n-drawer-content title="添加视频">
+      <n-form :model="form" label-placement="left" label-width="80">
+        <n-form-item label="视频BVID">
+          <n-space>
+            <n-input v-model:value="form.bvid" placeholder="请输入视频BVID" />
+            <n-button type="primary" @click="SearchVideo">查询</n-button>
+          </n-space>
+        </n-form-item>
+        <n-form-item label="视频标题">
+          <n-input v-model:value="form.title" placeholder="请输入视频标题" />
+        </n-form-item>
+        <n-form-item label="视频UP">
+          <n-input v-model:value="form.upname" placeholder="请输入UP名称" />
+        </n-form-item>
+        <n-form-item label="UP主页">
+          <n-a :href="form.uphomepage" target="_blank">{{ form.uphomepage }}</n-a>
+        </n-form-item>
+        <n-form-item label="视频地址">
+          <n-a :href="form.videourl" target="_blank">{{ form.videourl }}</n-a>
+        </n-form-item>
+        <n-form-item label="视频封面">
+          <n-image
+            v-if="form.imageurl"
+            width="180"
+            height="100"
+            :src="form.imageurl"
+            object-fit="cover"
+          />
+        </n-form-item>
+        <n-form-item label="收藏夹">
+          <n-select
+            v-model:value="form.videolist_id"
+            :options="selectOptions"
+            placeholder="请选择收藏夹"
+          />
+        </n-form-item>
+        <n-form-item label="时间选择">
+          <n-slider v-model:value="form.value" range :max="form.timemax" />
+        </n-form-item>
+      </n-form>
+      <template #footer>
+        <n-space>
+          <n-button @click="drawer = false">取消</n-button>
+          <n-button type="primary" @click="submit">提交</n-button>
+        </n-space>
+      </template>
+    </n-drawer-content>
+  </n-drawer>
+
+  <!-- 主内容区 -->
+  <div class="list-box">
+    <div class="main-content">
+      <!-- 当前播放信息 -->
+      <div v-if="status" class="now-playing">
+        <n-image
+          v-if="videoimgurl"
+          :src="videoimgurl"
+          width="120"
+          height="68"
+          object-fit="cover"
+          preview-disabled
+          class="np-cover"
+        />
+        <div class="np-info">
+          <span class="np-title">{{ videotitles }}</span>
+        </div>
+      </div>
+
+      <!-- 搜索和操作区 -->
+      <div class="search-section">
+        <n-input v-model:value="searchQuery" placeholder="输入视频 BV 号" clearable size="small">
+          <template #prefix>
+            <svg-icon iconName="icon-shoucangjia" color="#8a8890" style="font-size: 14px;"></svg-icon>
+          </template>
+        </n-input>
+        <n-dropdown :options="dropdownOptions" @select="handleCommand" trigger="click">
+          <n-button size="small" type="primary">添加</n-button>
+        </n-dropdown>
+      </div>
+
+      <!-- 收藏夹列表 -->
+      <div class="collection-list">
+        <div
+          v-for="item in menuItems"
+          :key="item.videolists_id"
+          class="collection-item"
+          :class="{ active: menus === item.videolists_id }"
+          @click="listid(item.videolists_id)"
+        >
+          <span>{{ item.videolist_name }}</span>
+        </div>
       </div>
     </div>
-  </el-drawer>
-  <div class="common-layout">
-    <el-container>
-      <el-aside width="60px">
-        <div class="button-sme">
-          <el-button text>23</el-button>
-          <el-button text>1</el-button>
-          <el-button text>1</el-button>
-          <el-button text>1</el-button>
-        </div>
-      </el-aside>
-      <el-main class="mains">
-        <el-card style="max-width: 480px" v-show="status">
-          <template #header>
-            <div class="card-header">
-              <span>{{ videotitles }}</span>
-            </div>
-          </template>
-          <img :src=videoimgurl style="width: 100%;height: 110px;" fit="scale-down" />
-        </el-card>
-        <div class="list">
-          <div class="selectbox">
-            <el-row>
-              <el-col :span="20"> <el-input :v-model="100" style="width: 100%" placeholder="输入视频bvid"
-                  clearable /></el-col>
-              <el-col :span="2">
-                <el-dropdown @command="handleCommand" trigger="click">
-                  <el-button>+</el-button>
-                  <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item command="a" @click="drawer = true">添加视频</el-dropdown-item>
-                      <el-dropdown-item command="b">添加收藏夹d</el-dropdown-item>
-                    </el-dropdown-menu>
-                  </template>
-                </el-dropdown>
-              </el-col>
-            </el-row>
-          </div>
-          <div class="collection" v-for="(item, index) in menuItems" :key="item.videolists_id"
-            @click="listid(item.videolists_id)">
-            <span>{{ item.videolist_name }}</span>
-          </div>
-        </div>
-
-      </el-main>
-    </el-container>
+  </div>
   </div>
 </template>
-<script setup>
-import { ref, onMounted, watch, reactive } from "vue";
-import { useMenusStore, usePlayStore, usePlayList } from "../../stroe/counter";
+
+<script setup lang="ts">
+import { ref, onMounted, watch, reactive, computed } from 'vue';
+import { useMenusStore, usePlayStore, usePlayList } from '../../store';
 import { storeToRefs } from 'pinia';
+import { useMessage } from 'naive-ui';
+import type { DropdownOption } from 'naive-ui';
+
+const message = useMessage();
+
+interface MenuItem {
+  videolists_id: number;
+  videolist_name: string;
+}
+
 const drawer = ref(false);
+const searchQuery = ref('');
+
 const play = usePlayStore();
 const playList = usePlayList();
+const store = useMenusStore();
+
 const { listser } = storeToRefs(playList);
 const { duration, videotitle, videoimg_url, video_bvid, playback_status } = storeToRefs(play);
-const store = useMenusStore();
 const { menus } = storeToRefs(store);
+
 const videoimgurl = ref('');
-const videotitles = ref('视频列表');
-const menuItems = ref([]);
+const videotitles = ref('');
+const menuItems = ref<MenuItem[]>([]);
 const status = ref(playback_status.value);
-// const value = ref([0, 60])
+
+// 用 ref 保存查询结果，避免抽屉关闭后数据丢失
+const queriedData = ref<any>(null);
+
 const form = reactive({
   bvid: '',
   title: '',
@@ -110,95 +139,234 @@ const form = reactive({
   imageurl: '',
   upname: '',
   timemax: 100,
-  value: [0, 80],
+  value: [0, 80] as [number, number],
   uphomepage: '',
-  videourl:'',
+  videourl: '',
 });
-function SearchVideo() {
 
-  window.electronAPI.VideoGetinfo(form.bvid).then((data) => {
+const selectOptions = computed(() => {
+  return menuItems.value.map((item) => ({
+    label: item.videolist_name,
+    value: item.videolists_id,
+  }));
+});
+
+const dropdownOptions: DropdownOption[] = [
+  { label: '添加视频', key: 'a' },
+  { label: '添加收藏夹', key: 'b' },
+];
+
+function SearchVideo() {
+  if (!form.bvid) {
+    message.warning('请输入视频BVID');
+    return;
+  }
+  window.electronAPI.VideoGetinfo(form.bvid).then((data: any) => {
+    if (!data) {
+      message.error('未找到视频信息');
+      return;
+    }
+    queriedData.value = {
+      bvid: form.bvid,
+      videotitle: data.videotitle,
+      videopic: data.videopic,
+      videoduration: data.videoduration,
+      upname: data.upname,
+      videourl: data.videourl,
+      uphomepage: data.uphomepage,
+      startTime: 0,
+      endTime: data.videoduration,
+    };
     form.title = data.videotitle;
     form.imageurl = data.videopic;
     form.timemax = data.videoduration;
     form.upname = data.upname;
     form.videourl = data.videourl;
     form.uphomepage = data.uphomepage;
-    // 假设 value 是另一个响应式引用，用于存储视频时间范围
     form.value = [0, data.videoduration];
-    console.log(data);
+    message.success('查询成功');
+  }).catch(() => {
+    message.error('查询视频失败');
   });
 }
-function submit(){
- const videoInfoObject = {
-  bvid: form.bvid,
-  videotitle: form.title,
-  videolist_id: form.videolist_id,
-  videopic: form.imageurl,
-  upname: form.upname,
-  uphomepage: form.uphomepage,
-  videoduration: form.timemax,
-  videourl: form.videourl,
-  videoend: form.value[1],
-  videostart: form.value[0],
- }
 
-console.log(videoInfoObject);
-window.electronAPI.InsertVideoinfo(videoInfoObject).then((data) => {
-  listser.value = true;
-})
+function submit() {
+  if (!queriedData.value) {
+    message.warning('请先查询视频信息');
+    return;
+  }
+  if (!form.videolist_id) {
+    message.warning('请选择收藏夹');
+    return;
+  }
 
+  const d = queriedData.value;
+  const videoInfoObject = {
+    bvid: d.bvid || '',
+    videotitle: d.videotitle || '',
+    videolist_id: Number(form.videolist_id) || 1,
+    videopic: d.videopic || '',
+    upname: d.upname || '',
+    uphomepage: d.uphomepage || '',
+    videoduration: Number(d.videoduration) || 0,
+    videourl: d.videourl || '',
+    videoend: Number(form.value[1] || d.endTime) || 0,
+    videostart: Number(form.value[0] || d.startTime) || 0,
+  };
+
+  window.electronAPI.InsertVideoinfo(videoInfoObject).then((result) => {
+    if (result && result.success) {
+      message.success('添加成功');
+      listser.value = true;
+      drawer.value = false;
+      queriedData.value = null;
+    } else {
+      message.error('添加失败: ' + (result?.error || '数据库写入异常'));
+    }
+  }).catch((err) => {
+    message.error('请求失败: ' + (err.message || 'IPC通信异常'));
+  });
 }
-function listid(id) {
-  store.menus = id;
+
+function listid(id: number) {
+  store.setMenu(id);
 }
-const handleCommand = (command) => {
-  if (command === 'a') { } else if (command === 'b') { }
+
+function handleCommand(key: string) {
+  if (key === 'a') {
+    drawer.value = true;
+  }
 }
+
 watch(
   () => video_bvid.value,
-  (newMenus, oldMenus) => {
-    // 当 data 变化时，这里的回调会被触发
+  () => {
     videoimgurl.value = videoimg_url.value;
     videotitles.value = videotitle.value;
-    status.value = playback_status.value
-  },
+    status.value = playback_status.value;
+  }
 );
-onMounted(() => {
-  window.electronAPI.VideoGetLists().then((lists) => {
-    menuItems.value = lists; // 更新视频列表的响应式变量
 
+onMounted(() => {
+  window.electronAPI.VideoGetLists().then((lists: MenuItem[]) => {
+    menuItems.value = lists;
   });
 });
 
+// drawer 打开时确保默认选中第一个收藏夹
+watch(
+  () => drawer.value,
+  (isOpen) => {
+    if (isOpen && menuItems.value.length > 0 && !form.videolist_id) {
+      form.videolist_id = String(menuItems.value[0].videolists_id);
+    }
+  }
+);
 </script>
-<style>
-.mains .el-main {
-  padding: 5px;
-}
 
-.collection {
-  width: 100%;
-  height: 20px;
-  padding: 10px;
-  /* background-color: bisque; */
-  text-align: center;
-  border-radius: 5px;
-}
-
-.collection:hover {
-  /* background-color: bisque; */
-  color: aqua;
-}
-
-.boxs {
-  height: 50px;
-  width: auto;
-  background-color: bisque;
-
-}
-
-.button-sme {
-  width: auto;
+<style scoped>
+.list-box-wrapper {
   height: 100%;
+}
+
+.list-box {
+  display: flex;
+  height: 100%;
+  background: #08080a;
+}
+
+.main-content {
+  flex: 1;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.now-playing {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
+  border: 1px solid rgba(201, 165, 92, 0.12);
+  animation: nowPlayingGlow 3s ease-in-out infinite;
+}
+
+@keyframes nowPlayingGlow {
+  0%, 100% { border-color: rgba(201, 165, 92, 0.08); }
+  50% { border-color: rgba(201, 165, 92, 0.2); }
+}
+
+.np-cover {
+  border-radius: 8px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.np-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.np-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #e8e6e0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-section {
+  display: flex;
+  gap: 8px;
+}
+
+.collection-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.collection-item {
+  padding: 10px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #8a8890;
+  transition: all var(--duration-fast) var(--ease-in-out);
+  border-left: 3px solid transparent;
+  animation: collectionSlideIn 0.2s var(--ease-out) both;
+}
+
+@keyframes collectionSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.collection-item:nth-child(1) { animation-delay: 0ms; }
+.collection-item:nth-child(2) { animation-delay: 30ms; }
+.collection-item:nth-child(3) { animation-delay: 60ms; }
+.collection-item:nth-child(4) { animation-delay: 90ms; }
+.collection-item:nth-child(5) { animation-delay: 120ms; }
+
+.collection-item:hover {
+  background: rgba(201, 165, 92, 0.06);
+  color: #e8e6e0;
+}
+
+.collection-item.active {
+  background: rgba(201, 165, 92, 0.08);
+  color: #c9a55c;
+  border-left-color: #c9a55c;
 }
 </style>

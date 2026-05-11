@@ -1,49 +1,54 @@
 <template>
-    <div class="menu-music">
-
-        <!-- <el-divider border-style="double" /> -->
-        <div class="play-list">
-            <!-- <el-menu default-active="2" class="el-menu-vertical-demo" @open="handleOpen" @close="handleClose" ></el-menu> -->
-            <el-menu default-active="2" class="el-menu-vertical-demo">
-                <!-- <el-menu-item index="0">
-                    <el-icon>
-                        <setting />
-                    </el-icon>
-                    <span>默认歌单</span>
-                </el-menu-item> -->
-                <el-menu-item v-for="item in menuItems" :key="item.videolists_id" :index="String(item.videolists_id)" >
-                    <el-icon :size="20">
-                        <!-- <component :is="item.icon"></component> -->
-                    </el-icon>
-                    <span>{{ item.videolist_name }}</span>
-                </el-menu-item>
-            </el-menu>
-        </div>
-      
+  <div class="menu-music">
+    <div class="play-list">
+      <n-menu :options="menuOptions" :value="activeKey" @update:value="handleMenuChange" />
     </div>
+  </div>
 </template>
 
-<script setup>
-import { ref, onMounted } from "vue";
-import { Menu as Setting } from '@element-plus/icons-vue';
-import router from '@/router';
-const menuItems = ref([
-    { index: 1, icon: 'setting', label: '歌单1' },
-    { index: 2, icon: 'message', label: '歌单2' },
-    { index: 3, icon: 'setting', label: '歌单3' }
-]);
-function cx(){
-    router.push('/music/1');
+<script setup lang="ts">
+import { ref, onMounted, computed } from 'vue';
+import { useRouter } from 'vue-router';
+
+interface MenuItem {
+  videolists_id: number;
+  videolist_name: string;
+}
+
+const router = useRouter();
+const menuItems = ref<MenuItem[]>([]);
+const activeKey = ref<number | null>(null);
+
+// 转换为 Naive UI 菜单选项格式
+const menuOptions = computed(() => {
+  return menuItems.value.map((item) => ({
+    label: item.videolist_name,
+    key: item.videolists_id,
+  }));
+});
+
+function handleMenuChange(key: number) {
+  activeKey.value = key;
+  router.push(`/music/${key}`);
 }
 
 onMounted(() => {
-    cx();
-  window.electronAPI.VideoGetLists().then((lists) => {
-    menuItems.value = lists; // 更新视频列表的响应式变量
-    // console.log(lists, '123');
+  window.electronAPI.VideoGetLists().then((lists: MenuItem[]) => {
+    menuItems.value = lists;
+    if (lists.length > 0) {
+      activeKey.value = lists[0].videolists_id;
+      handleMenuChange(lists[0].videolists_id);
+    }
   });
 });
 </script>
-<style>
 
+<style scoped>
+.menu-music {
+  height: 100%;
+}
+
+.play-list {
+  height: 100%;
+}
 </style>
