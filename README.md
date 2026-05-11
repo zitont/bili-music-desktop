@@ -1,18 +1,78 @@
-# Vue 3 + TypeScript + Vite
+# Bili Music Desktop
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+基于 Electron + Vue 3 的 Bilibili 音乐播放器桌面客户端。
 
-## Recommended IDE Setup
+## 功能
 
-- [VS Code](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur) + [TypeScript Vue Plugin (Volar)](https://marketplace.visualstudio.com/items?itemName=Vue.vscode-typescript-vue-plugin).
+- 通过 BVID 添加并播放 Bilibili 视频音频
+- 歌单管理（多对多关系）
+- 自定义播放区间（剪辑模式）
+- 亮色/暗色主题切换
+- 动态背景动画（涟漪、波形、粒子、频谱、放射、极光）
+- 全局快捷键控制播放
+- 磨砂玻璃 UI 设计
 
-## Type Support For `.vue` Imports in TS
+## 技术栈
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [TypeScript Vue Plugin (Volar)](https://marketplace.visualstudio.com/items?itemName=Vue.vscode-typescript-vue-plugin) to make the TypeScript language service aware of `.vue` types.
+| 层 | 技术 |
+| --- | --- |
+| 框架 | Vue 3.5 + TypeScript |
+| 构建 | Vite 5 |
+| 桌面 | Electron 28 |
+| UI | Naive UI |
+| 数据库 | better-sqlite3 |
+| 图标 | iconfont SVG 图标 |
 
-If the standalone TypeScript plugin doesn't feel fast enough to you, Volar has also implemented a [Take Over Mode](https://github.com/johnsoncodehk/volar/discussions/471#discussioncomment-1361669) that is more performant. You can enable it by the following steps:
+## 开发
 
-1. Disable the built-in TypeScript Extension
-   1. Run `Extensions: Show Built-in Extensions` from VSCode's command palette
-   2. Find `TypeScript and JavaScript Language Features`, right click and select `Disable (Workspace)`
-2. Reload the VSCode window by running `Developer: Reload Window` from the command palette.
+```bash
+# 安装依赖
+npm install
+
+# 终端 1：启动 Vite 开发服务器（端口 3001）
+npm run dev
+
+# 终端 2：启动 Electron（带 nodemon 热重载）
+npm run electron:start
+```
+
+## 构建
+
+```bash
+# 仅构建渲染进程
+npm run build:vite
+
+# 打包为目录（调试用）
+npm run electron:pack
+
+# 构建 Windows x64 安装包
+npm run electron:dist
+```
+
+## 代码质量
+
+```bash
+npm run lint    # ESLint 检查并自动修复
+npm run format  # Prettier 格式化
+npm test        # Vitest 运行测试
+```
+
+## 项目结构
+
+```
+src/
+  components/      # Vue 组件
+  store/           # Pinia 状态管理
+  router/          # Vue Router 路由
+  styles/          # CSS 变量与主题
+  utils/           # 工具函数
+  assets/          # 静态资源
+preload/           # Electron 预加载脚本
+main.js            # Electron 主进程
+db.js              # 数据库管理
+windows.js         # 窗口管理
+```
+
+## 许可
+
+MIT
