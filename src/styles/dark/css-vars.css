@@ -70,15 +70,15 @@
   --app-bg: var(--surface-0);
 
   /* 字体系统 */
-  --font-family:
-    'Inter', 'SF Pro Display', -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei',
-    sans-serif;
-  --font-display: 700 28px/1.2 var(--font-family);
-  --font-heading: 600 20px/1.3 var(--font-family);
-  --font-subheading: 600 15px/1.4 var(--font-family);
-  --font-body: 400 13px/1.5 var(--font-family);
-  --font-caption: 500 11px/1.4 var(--font-family);
-  --font-micro: 500 10px/1.3 var(--font-family);
+  --font-display-family: 'Bricolage Grotesque', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-body-family: 'DM Sans', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-family: var(--font-body-family);
+  --font-display: 800 32px/1.15 var(--font-display-family);
+  --font-heading: 700 22px/1.25 var(--font-display-family);
+  --font-subheading: 600 15px/1.4 var(--font-display-family);
+  --font-body: 400 13px/1.6 var(--font-body-family);
+  --font-caption: 500 11px/1.4 var(--font-body-family);
+  --font-micro: 500 10px/1.3 var(--font-body-family);
 
   /* 间距系统 */
   --space-1: 4px;

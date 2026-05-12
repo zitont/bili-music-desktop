@@ -44,9 +44,26 @@
 
     <!-- 视频列表 -->
     <n-scrollbar class="list-scroll">
-      <div v-if="filteredItems.length === 0 && !loadError" class="empty-state">
+      <!-- 空状态：搜索无结果 -->
+      <div v-if="filteredItems.length === 0 && !loadError && searchQuery" class="empty-state">
         <svg-icon icon-name="icon-empty" class="empty-icon"></svg-icon>
-        <span class="empty-text">{{ searchQuery ? '未找到匹配的视频' : '暂无视频' }}</span>
+        <span class="empty-text">未找到匹配的视频</span>
+        <span class="empty-hint">尝试其他搜索关键词</span>
+      </div>
+
+      <!-- 空状态：歌单无歌曲 -->
+      <div v-else-if="items.length === 0 && !loadError && !searchQuery" class="empty-state">
+        <div class="empty-illustration">
+          <div class="empty-disc"></div>
+          <div class="empty-note"></div>
+          <div class="empty-note empty-note--short"></div>
+        </div>
+        <span class="empty-title">开始你的音乐之旅</span>
+        <span class="empty-text">歌单还是空的，快来添加你喜欢的 B 站视频吧</span>
+        <button class="empty-action" @click="goToAdd">
+          <svg-icon icon-name="icon-tianjia" style="font-size: 16px"></svg-icon>
+          添加视频
+        </button>
       </div>
 
       <div
@@ -93,6 +110,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import { setVideoBvid, VideoGetListsID } from '../../utils/electronApi.js';
 import { formatTime } from '../../utils/functions.js';
 import { useMenusStore, usePlayStore, usePlayList } from '../../store';
@@ -102,6 +120,7 @@ import type { DropdownOption } from 'naive-ui';
 import EditSong from '../EditSong/index.vue';
 import type { VideoItem } from '../../types/video';
 
+const router = useRouter();
 const message = useMessage();
 const store = useMenusStore();
 const play = usePlayStore();
@@ -127,6 +146,10 @@ const filteredItems = computed(() => {
     item.up_name.toLowerCase().includes(query)
   );
 });
+
+function goToAdd() {
+  router.push('/increase');
+}
 
 function handoffvideo(item: VideoItem, index: number) {
   const startTime = item.video_startTime || 0;
@@ -239,17 +262,17 @@ watch(
 }
 
 .header {
-  padding: 20px 24px 12px;
+  padding: 24px 28px 16px;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  animation: headerFadeIn 0.3s var(--ease-out) both;
+  animation: headerFadeIn 0.4s var(--ease-out) both;
 }
 
 @keyframes headerFadeIn {
   from {
     opacity: 0;
-    transform: translateY(-6px);
+    transform: translateY(-8px);
   }
   to {
     opacity: 1;
@@ -260,22 +283,32 @@ watch(
 .header-left {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .header-title {
-  font-size: 28px;
-  font-weight: 700;
+  font: var(--font-heading);
   color: var(--text-primary);
   letter-spacing: -0.02em;
-  line-height: 1.2;
+  background: linear-gradient(90deg, var(--text-primary), var(--color-primary), var(--text-primary), var(--color-primary));
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradientSlide 8s ease-in-out infinite;
+}
+
+@keyframes gradientSlide {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
 }
 
 .header-count {
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-tertiary);
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .header-right {
@@ -285,7 +318,12 @@ watch(
 }
 
 .search-input {
-  width: 200px;
+  width: 220px;
+  transition: width var(--duration-normal) var(--ease-out);
+}
+
+.search-input:focus-within {
+  width: 280px;
 }
 
 .search-icon {
@@ -295,19 +333,22 @@ watch(
 .table-header {
   display: flex;
   align-items: center;
-  padding: 8px 24px;
+  padding: 10px 28px;
   background: var(--surface-1);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--b-border-light);
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .table-header div {
   font-size: 10px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-tertiary);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
 }
 
 .col-title {
@@ -315,7 +356,7 @@ watch(
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .col-duration {
@@ -341,20 +382,28 @@ watch(
 .list-item {
   display: flex;
   align-items: center;
-  padding: 10px 24px;
-  min-height: 56px;
+  padding: 12px 28px;
+  min-height: 60px;
   cursor: pointer;
-  transition:
-    background var(--duration-fast) var(--ease-in-out),
-    border-left-color var(--duration-fast) var(--ease-in-out);
+  transition: all var(--duration-normal) var(--ease-out);
   border-left: 3px solid transparent;
-  animation: itemSlideIn 0.25s var(--ease-out) both;
+  animation: itemSlideIn 0.3s var(--ease-out) both;
+  position: relative;
+}
+
+.list-item::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--b-hover);
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-in-out);
 }
 
 @keyframes itemSlideIn {
   from {
     opacity: 0;
-    transform: translateX(8px);
+    transform: translateX(12px);
   }
   to {
     opacity: 1;
@@ -362,46 +411,60 @@ watch(
   }
 }
 
+.list-item:hover::before {
+  opacity: 1;
+}
+
 .list-item:hover {
-  background: var(--b-hover);
+  border-left-color: var(--border-hover);
+}
+
+.list-item:hover .cover-img {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .list-item.active {
-  background: var(--b-hover);
+  background: var(--gradient-primary-subtle);
   border-left-color: var(--color-primary);
-  animation: activeItemPulse 3s ease-in-out infinite;
+  box-shadow: inset 0 0 0 1px var(--border-hover);
 }
 
-@keyframes activeItemPulse {
-  0%,
-  100% {
-    background: var(--b-hover);
-  }
-  50% {
-    background: var(--b-hover-strong);
-  }
+.list-item.active::before {
+  background: linear-gradient(90deg, var(--color-primary-glow), transparent);
+  opacity: 0.5;
 }
 
 .list-item.active .video-title {
   color: var(--color-primary);
+  font-weight: 600;
 }
 
 .list-item.active .cover-img {
-  box-shadow: 0 0 12px var(--color-primary-glow);
+  box-shadow: 0 0 16px var(--color-primary-glow);
+  transform: scale(1.05);
+}
+
+.list-item.active .video-up {
+  color: var(--text-secondary);
 }
 
 .cover-img {
-  border-radius: 6px;
+  border-radius: 8px;
   flex-shrink: 0;
   overflow: hidden;
-  transition: box-shadow var(--duration-normal) var(--ease-in-out);
+  transition: all var(--duration-normal) var(--ease-out);
+  position: relative;
+  z-index: 1;
 }
 
 .title-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   min-width: 0;
+  position: relative;
+  z-index: 1;
 }
 
 .video-title {
@@ -411,20 +474,23 @@ watch(
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  line-height: 1.3;
-  transition: color var(--duration-fast) var(--ease-in-out);
+  line-height: 1.4;
+  transition: all var(--duration-normal) var(--ease-out);
 }
 
 .video-up {
   font-size: 11px;
   color: var(--text-tertiary);
   line-height: 1.3;
+  transition: color var(--duration-normal) var(--ease-out);
 }
 
 .action-btn {
   opacity: 0;
-  transition: all var(--duration-fast) var(--ease-in-out);
+  transition: all var(--duration-normal) var(--ease-out);
   color: var(--text-secondary);
+  position: relative;
+  z-index: 1;
 }
 
 .list-item:hover .action-btn {
@@ -432,7 +498,8 @@ watch(
 }
 
 .action-btn:hover {
-  transform: scale(1.1);
+  transform: scale(1.15) rotate(90deg);
+  color: var(--text-primary);
 }
 
 .empty-state {
@@ -442,36 +509,145 @@ watch(
   justify-content: center;
   gap: 12px;
   padding: 80px 0;
+  animation: emptyFadeIn 0.5s var(--ease-out) both;
+}
+
+@keyframes emptyFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .empty-icon {
-  font-size: 48px;
-  animation: pulse 2s ease-in-out infinite;
+  font-size: 56px;
+  animation: emptyPulse 3s ease-in-out infinite;
   color: var(--text-tertiary);
+  opacity: 0.6;
 }
 
 .empty-text {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-tertiary);
+  font-weight: 500;
 }
 
-@keyframes pulse {
-  0%,
-  100% {
+.empty-hint {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  opacity: 0.6;
+}
+
+@keyframes emptyPulse {
+  0%, 100% {
     opacity: 0.4;
+    transform: scale(1);
   }
   50% {
     opacity: 0.7;
+    transform: scale(1.05);
   }
 }
 
+/* 更丰富的空状态 */
+.empty-illustration {
+  position: relative;
+  width: 120px;
+  height: 90px;
+  margin-bottom: 8px;
+}
+
+.empty-disc {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 2px dashed var(--text-tertiary);
+  opacity: 0.25;
+  animation: emptyDiscRotate 8s linear infinite;
+}
+
+@keyframes emptyDiscRotate {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.empty-note {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  width: 40px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--text-tertiary);
+  opacity: 0.15;
+  transform: rotate(-15deg);
+}
+
+.empty-note--short {
+  width: 24px;
+  top: 22px;
+  right: 16px;
+  opacity: 0.1;
+}
+
+.empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.empty-action {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 8px 20px;
+  background: var(--gradient-primary);
+  border: none;
+  border-radius: 8px;
+  color: #08080a;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--ease-out);
+}
+
+.empty-action:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px var(--color-primary-glow);
+}
+
+.empty-action:active {
+  transform: scale(0.97);
+}
+
 .load-error {
-  padding: 12px 24px;
+  padding: 14px 28px;
   background: var(--b-danger);
   border-left: 3px solid var(--color-danger);
-  margin: 0 24px;
-  border-radius: 0 6px 6px 0;
+  margin: 0 28px;
+  border-radius: 0 8px 8px 0;
   font-size: 13px;
   color: var(--color-danger);
+  font-weight: 500;
+  animation: errorSlideIn 0.3s var(--ease-out) both;
+}
+
+@keyframes errorSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 </style>

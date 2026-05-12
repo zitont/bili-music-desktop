@@ -339,50 +339,67 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   background: var(--surface-2);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  position: relative;
+}
+
+.playback::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border-hover), transparent);
 }
 
 .progress-bar {
-  height: 4px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  height: 18px;
+  display: flex;
+  align-items: center;
   padding: 0;
-  transition: height var(--duration-normal) var(--ease-out);
 }
 
-.progress-bar.hovering {
-  height: 6px;
+.progress-bar :deep(.n-slider-rail) {
+  height: 3px !important;
 }
 
-.progress-bar :deep(.n-slider) {
-  --n-rail-height: 4px !important;
-  --n-handle-size: 0;
-  --n-fill-color: var(--color-primary);
-  --n-fill-color-hover: var(--color-primary-hover);
-  --n-handle-color: var(--text-inverse);
-  --n-rail-color: var(--b-border);
-  --n-rail-color-hover: var(--b-border);
+.progress-bar:hover :deep(.n-slider-rail) {
+  height: 5px !important;
 }
 
-.progress-bar:hover :deep(.n-slider) {
-  --n-handle-size: 8px;
+.progress-bar :deep(.n-slider-fill) {
+  box-shadow: 0 0 12px var(--color-primary-glow);
 }
 
-.progress-bar.hovering :deep(.n-slider) {
-  --n-rail-height: 6px !important;
+.progress-bar :deep(.n-slider-handle) {
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.progress-bar:hover :deep(.n-slider-handle) {
+  width: 10px !important;
+  height: 10px !important;
 }
 
 .controls {
   flex: 1;
   display: flex;
   align-items: center;
-  padding: 0 20px;
-  gap: 16px;
+  padding: 8px 24px 0;
+  gap: 20px;
 }
 
 .left-section {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   width: 280px;
   flex-shrink: 0;
 }
@@ -392,19 +409,25 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 
-.cover-wrapper.playing .cover-img {
-  box-shadow: 0 0 12px var(--color-primary-glow);
-  animation: coverGlow 2.5s ease-in-out infinite;
+.cover-wrapper::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 10px;
+  background: var(--gradient-primary);
+  opacity: 0;
+  z-index: -1;
+  transition: opacity var(--duration-normal) var(--ease-out);
 }
 
-@keyframes coverGlow {
-  0%,
-  100% {
-    box-shadow: 0 0 12px var(--color-primary-glow);
-  }
-  50% {
-    box-shadow: 0 0 20px var(--shadow-glow);
-  }
+.cover-wrapper.playing::after {
+  opacity: 0.3;
+  animation: coverPulse 3s ease-in-out infinite;
+}
+
+@keyframes coverPulse {
+  0%, 100% { opacity: 0.2; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(1.02); }
 }
 
 .cover-img {
@@ -415,31 +438,37 @@ onUnmounted(() => {
     box-shadow var(--duration-normal) var(--ease-in-out),
     transform var(--duration-normal) var(--ease-out);
   cursor: pointer;
+  position: relative;
+  z-index: 1;
 }
 
 .cover-img:hover {
-  transform: scale(1.05);
+  transform: scale(1.08) rotate(1deg);
 }
 
 .cover-placeholder {
   width: 52px;
   height: 52px;
   border-radius: 8px;
-  background: var(--surface-2);
+  background: linear-gradient(135deg, var(--surface-3), var(--surface-2));
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   font-size: 20px;
   color: var(--text-tertiary);
+  position: relative;
+  z-index: 1;
 }
 
 .ctrl-icon {
   color: var(--text-secondary);
+  transition: all var(--duration-normal) var(--ease-out);
 }
 
 .main-icon {
   color: var(--text-inverse);
+  transition: all var(--duration-normal) var(--ease-out);
 }
 
 .track-info {
@@ -464,10 +493,8 @@ onUnmounted(() => {
 }
 
 .track-title-text {
-  font-size: 15px;
-  font-weight: 600;
+  font: var(--font-subheading);
   color: var(--text-primary);
-  line-height: 1.4;
   padding-right: 48px;
 }
 
@@ -481,13 +508,13 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
 }
 
 .playback-controls {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
 }
 
 .ctrl-btn {
@@ -501,53 +528,78 @@ onUnmounted(() => {
   justify-content: center;
   border-radius: 50%;
   font-size: 14px;
-  transition: all var(--duration-fast) var(--ease-in-out);
+  transition: all var(--duration-normal) var(--ease-out);
+  position: relative;
 }
 
-.ctrl-btn:hover {
+.ctrl-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
   background: var(--b-hover-neutral);
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-in-out);
 }
 
-.ctrl-btn:hover :deep(.svg-icon) {
+.ctrl-btn:hover::before {
+  opacity: 1;
+}
+
+.ctrl-btn:hover .ctrl-icon {
   color: var(--text-primary);
+  transform: scale(1.1);
+}
+
+.ctrl-btn:active {
+  transform: scale(0.9);
 }
 
 .ctrl-btn-main {
-  width: 44px;
-  height: 44px;
+  width: 30px;
+  height: 30px;
   background: var(--gradient-primary);
-  font-size: 18px;
+  font-size: 14px;
+  box-shadow: 0 4px 16px var(--color-primary-glow);
+}
+
+.ctrl-btn-main::before {
+  background: var(--gradient-primary-hover);
 }
 
 .ctrl-btn-main:hover {
-  background: var(--gradient-primary-hover);
-  box-shadow: 0 0 16px var(--shadow-glow);
+  box-shadow: 0 6px 24px var(--shadow-glow);
+  transform: scale(1.05);
 }
 
 .ctrl-btn-main:active {
   background: var(--gradient-primary-active);
-  transform: scale(0.93);
+  transform: scale(0.95);
+  box-shadow: 0 2px 8px var(--color-primary-glow);
 }
 
-.ctrl-btn-main :deep(.svg-icon) {
+.ctrl-btn-main .main-icon {
+  position: relative;
+  z-index: 1;
   transition: transform var(--duration-fast) var(--ease-out);
 }
 
-.ctrl-btn-main:active :deep(.svg-icon) {
+.ctrl-btn-main:active .main-icon {
   transform: scale(0.9);
 }
 
 .time-display {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
   font-weight: 500;
+  letter-spacing: 0.04em;
 }
 
 .right-section {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   width: 240px;
   justify-content: flex-end;
   flex-shrink: 0;
@@ -556,7 +608,7 @@ onUnmounted(() => {
 .volume-control {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .volume-slider {
@@ -565,5 +617,6 @@ onUnmounted(() => {
 
 .tooltip-text {
   font-size: 12px;
+  font-weight: 500;
 }
 </style>

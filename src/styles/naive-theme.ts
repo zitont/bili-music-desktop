@@ -22,7 +22,7 @@ const darkOverrides: GlobalThemeOverrides = {
     borderColor: 'rgba(255, 255, 255, 0.06)',
     hoverColor: 'rgba(201, 165, 92, 0.06)',
     fontFamily:
-      "'Inter', 'SF Pro Display', -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif",
+      "'DM Sans', 'PingFang SC', 'Microsoft YaHei', sans-serif",
     fontSizeMini: '10px',
     fontSizeTiny: '11px',
     fontSizeSmall: '13px',
@@ -114,7 +114,7 @@ const lightOverrides: GlobalThemeOverrides = {
     borderColor: 'rgba(0, 0, 0, 0.06)',
     hoverColor: 'rgba(201, 165, 92, 0.08)',
     fontFamily:
-      "'Inter', 'SF Pro Display', -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif",
+      "'DM Sans', 'PingFang SC', 'Microsoft YaHei', sans-serif",
     fontSizeMini: '10px',
     fontSizeTiny: '11px',
     fontSizeSmall: '13px',

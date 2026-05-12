@@ -57,7 +57,7 @@ export const usePlayList = defineStore('playlist', {
 export const useThemeStore = defineStore('theme', {
   state: () => ({
     isDark: true as boolean,
-    glassEnabled: true as boolean,
+    glassEnabled: false as boolean,
   }),
   actions: {
     toggleTheme() {

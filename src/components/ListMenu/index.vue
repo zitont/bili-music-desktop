@@ -79,20 +79,20 @@ function settings() {
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 6px 0;
+  padding: 8px 0;
 }
 
 .nav-section {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   padding: 0 10px;
 }
 
 .nav-section.bottom {
   margin-top: auto;
-  padding-top: 6px;
+  padding-top: 8px;
   border-top: 1px solid var(--b-border-light);
 }
 
@@ -100,14 +100,14 @@ function settings() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   padding: 0 10px;
 }
 
 .nav-divider {
   height: 1px;
-  margin: 6px 16px;
-  background: var(--b-border-light);
+  margin: 8px 16px;
+  background: linear-gradient(90deg, transparent, var(--b-border-light), transparent);
 }
 
 .nav-spacer {
@@ -121,40 +121,57 @@ function settings() {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  border-radius: 10px;
+  gap: 3px;
+  border-radius: 12px;
   cursor: pointer;
   font-size: 18px;
-  transition: all var(--duration-fast) var(--ease-in-out);
+  transition: all var(--duration-normal) var(--ease-out);
   position: relative;
+  overflow: hidden;
 }
 
-.nav-item:hover {
+.nav-item::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
   background: var(--b-hover);
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-in-out);
+}
+
+.nav-item:hover::before {
+  opacity: 1;
 }
 
 .nav-item:hover .nav-icon {
   color: var(--text-primary);
+  transform: scale(1.1);
 }
 
 .nav-item:active {
-  transform: scale(0.93);
+  transform: scale(0.92);
+}
+
+.nav-item:active::before {
+  opacity: 0.8;
 }
 
 .nav-item.active {
-  background: var(--b-hover);
+  background: var(--gradient-primary-subtle);
+  box-shadow: inset 0 0 0 1px var(--border-hover);
 }
 
 .nav-item.active .nav-icon {
   color: var(--color-primary);
+  filter: drop-shadow(0 0 6px var(--color-primary-glow));
 }
 
 .nav-icon {
   color: var(--text-tertiary);
-}
-
-.nav-item.active .nav-icon {
-  color: var(--color-primary);
+  transition: all var(--duration-normal) var(--ease-out);
+  position: relative;
+  z-index: 1;
 }
 
 .nav-item:hover .nav-icon {
@@ -163,11 +180,14 @@ function settings() {
 
 .nav-label {
   font-size: 10px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-tertiary);
   text-align: center;
   line-height: 1;
-  transition: color var(--duration-fast) var(--ease-in-out);
+  transition: all var(--duration-normal) var(--ease-out);
+  position: relative;
+  z-index: 1;
+  letter-spacing: 0.02em;
 }
 
 .nav-item:hover .nav-label {
@@ -176,12 +196,30 @@ function settings() {
 
 .nav-item.active .nav-label {
   color: var(--color-primary);
+  font-weight: 700;
 }
 
 .nav-indicator {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
   width: 3px;
-  height: 3px;
-  border-radius: 0 2px 2px 0;
-  background: var(--color-primary);
+  height: 16px;
+  border-radius: 0 3px 3px 0;
+  background: var(--gradient-primary);
+  box-shadow: 0 0 8px var(--color-primary-glow);
+  animation: indicatorSlideIn 0.3s var(--ease-out) both;
+}
+
+@keyframes indicatorSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) scaleY(0);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) scaleY(1);
+  }
 }
 </style>

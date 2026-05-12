@@ -1,59 +1,36 @@
 "use strict";
-const { app, BrowserWindow, ipcMain, globalShortcut, Tray, Menu, nativeImage, shell } = require("electron");
+const { app, BrowserWindow, ipcMain, shell, dialog } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const os = require("os");
 const createBiliWindow = require("./windows").createBiliWindow;
 const createBiliWindow2 = require("./windows").createBiliWindow2;
 const dbOperations = require("./db");
+const { loadWindowState, saveWindowState: saveWindowStateToFile } = require("./main/window-state");
+const { safeExecuteJavaScript, isSafeUrl, formatMemorySize } = require("./main/utils");
+const {
+  getVideoCurrentTime,
+  setPlayerVolume,
+  getVideoDuration,
+  controlPlayback,
+  getVideoInfo
+} = require("./main/player");
+const { AudioAnalyzer } = require("./main/audio-analyzer");
+const { ShortcutManager } = require("./main/shortcuts");
+const { TrayManager } = require("./main/tray");
 let mainWindow = null;
 let biliWindow = null;
-let biliWindow2 = null;
-let tray = null;
-let audioPollInterval = null;
-const WINDOW_LOAD_TIMEOUT = 3e4;
-const WINDOW_STATE_PATH = path.join(app.getPath("userData"), "window-state.json");
-const DEFAULT_WINDOW_STATE = {
-  width: 1100,
-  height: 730,
-  x: void 0,
-  y: void 0,
-  isMaximized: false
-};
-function loadWindowState() {
-  try {
-    if (fs.existsSync(WINDOW_STATE_PATH)) {
-      const data = JSON.parse(fs.readFileSync(WINDOW_STATE_PATH, "utf-8"));
-      return { ...DEFAULT_WINDOW_STATE, ...data };
-    }
-  } catch (error) {
-    console.error("Failed to load window state:", error);
-  }
-  return { ...DEFAULT_WINDOW_STATE };
-}
+const audioAnalyzer = new AudioAnalyzer();
+const shortcutManager = new ShortcutManager();
+const trayManager = new TrayManager();
 function saveWindowState() {
-  if (!mainWindow || mainWindow.isDestroyed())
-    return;
-  const isMaximized = mainWindow.isMaximized();
-  const bounds = isMaximized ? mainWindow.getNormalBounds() : mainWindow.getBounds();
-  const state = {
-    width: bounds.width,
-    height: bounds.height,
-    x: bounds.x,
-    y: bounds.y,
-    isMaximized
-  };
-  try {
-    fs.writeFileSync(WINDOW_STATE_PATH, JSON.stringify(state, null, 2));
-  } catch (error) {
-    console.error("Failed to save window state:", error);
-  }
+  saveWindowStateToFile(mainWindow, app.getPath("userData"));
 }
 function initDatabase() {
   dbOperations.initDatabase();
 }
 function createMainWindow() {
-  const windowState = loadWindowState();
+  const windowState = loadWindowState(app.getPath("userData"));
   const win = new BrowserWindow({
     width: windowState.width,
     height: windowState.height,
@@ -97,188 +74,6 @@ function createMainWindow() {
     mainWindow = null;
   });
   return win;
-}
-function createTray() {
-  const iconPath = path.join(__dirname, "assets/bilibili.png");
-  const icon = nativeImage.createFromPath(iconPath);
-  tray = new Tray(icon);
-  const contextMenu = Menu.buildFromTemplate([
-    { label: "显示主窗口", click: () => mainWindow == null ? void 0 : mainWindow.show() },
-    { type: "separator" },
-    { label: "上一首", click: () => playPrevious() },
-    { label: "播放/暂停", click: () => togglePlay() },
-    { label: "下一首", click: () => playNext() },
-    { type: "separator" },
-    { label: "退出", click: () => app.quit() }
-  ]);
-  tray.setToolTip("Bili Music");
-  tray.setContextMenu(contextMenu);
-  tray.on("click", () => {
-    if (mainWindow) {
-      mainWindow.show();
-      mainWindow.focus();
-    }
-  });
-}
-function safeExecuteJavaScript(window, code, timeout = WINDOW_LOAD_TIMEOUT) {
-  return new Promise((resolve, reject) => {
-    if (!window || window.isDestroyed()) {
-      reject(new Error("Window is not available"));
-      return;
-    }
-    const timeoutId = setTimeout(() => {
-      reject(new Error("Execute JavaScript timeout"));
-    }, timeout);
-    window.webContents.executeJavaScript(code).then((result) => {
-      clearTimeout(timeoutId);
-      resolve(result);
-    }).catch((error) => {
-      clearTimeout(timeoutId);
-      reject(error);
-    });
-  });
-}
-async function getVideoCurrentTime(time) {
-  if (!biliWindow || biliWindow.isDestroyed()) {
-    throw new Error("Bili window is not available");
-  }
-  const timeParam = JSON.stringify(time);
-  const code = `
-    (() => {
-      const videoDom = document.getElementsByTagName('video')[0];
-      if (!videoDom) return 0;
-      const time = ${timeParam};
-      if (time === undefined || time === null || time === '') {
-        return videoDom.currentTime;
-      }
-      videoDom.currentTime = Number(time);
-      return videoDom.currentTime;
-    })()
-  `;
-  return safeExecuteJavaScript(biliWindow, code);
-}
-async function setPlayerVolume(volume) {
-  if (!biliWindow || biliWindow.isDestroyed()) {
-    throw new Error("Bili window is not available");
-  }
-  const volumeParam = JSON.stringify(volume);
-  const code = `
-    (() => {
-      const videoDom = document.getElementsByTagName('video')[0];
-      if (!videoDom) return 0;
-      const volume = ${volumeParam};
-      if (volume === undefined || volume === null || volume === '') {
-        return videoDom.volume;
-      }
-      videoDom.volume = Math.max(0, Math.min(1, Number(volume)));
-      return videoDom.volume;
-    })()
-  `;
-  return safeExecuteJavaScript(biliWindow, code);
-}
-async function getVideoInfo(VideoBvid) {
-  if (biliWindow2 && !biliWindow2.isDestroyed()) {
-    biliWindow2.destroy();
-    biliWindow2 = null;
-  }
-  biliWindow2 = createBiliWindow2(VideoBvid);
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      if (biliWindow2 && !biliWindow2.isDestroyed()) {
-        biliWindow2.destroy();
-        biliWindow2 = null;
-      }
-      reject(new Error("Get video info timeout"));
-    }, WINDOW_LOAD_TIMEOUT);
-    const code = `
-      (() => {
-        try {
-          if (typeof __INITIAL_STATE__ !== 'undefined' && __INITIAL_STATE__) {
-            __INITIAL_STATE__.continuousPlay = false;
-          }
-          const videoData = __INITIAL_STATE__.videoData;
-          if (!videoData || !videoData.bvid) return null;
-          const bvid = videoData.bvid;
-          const videourl = 'https://www.bilibili.com/video/' + bvid;
-          const videotitle = videoData.title || '';
-          const originalPic = videoData.pic || '';
-          const videopic = originalPic.startsWith('http://')
-            ? originalPic.replace('http://', 'https://')
-            : originalPic;
-          let videoduration = 0;
-          const videoEl = document.getElementsByTagName('video')[0];
-          if (videoEl && !isNaN(videoEl.duration) && isFinite(videoEl.duration)) {
-            videoduration = videoEl.duration;
-          } else if (videoData.duration) {
-            videoduration = videoData.duration;
-          }
-          const upname = __INITIAL_STATE__.upData?.name || '';
-          const uphomepage = __INITIAL_STATE__.upData?.mid
-            ? 'https://space.bilibili.com/' + __INITIAL_STATE__.upData.mid
-            : '';
-          return { bvid, videourl, videotitle, videopic, videoduration, upname, uphomepage };
-        } catch (e) {
-          return null;
-        }
-      })()
-    `;
-    const onLoad = () => {
-      if (!biliWindow2 || biliWindow2.isDestroyed()) {
-        clearTimeout(timeout);
-        reject(new Error("Window destroyed before page load"));
-        return;
-      }
-      setTimeout(() => {
-        if (!biliWindow2 || biliWindow2.isDestroyed()) {
-          clearTimeout(timeout);
-          reject(new Error("Window destroyed before JS execution"));
-          return;
-        }
-        biliWindow2.webContents.executeJavaScript(code, true).then((videoInfo) => {
-          clearTimeout(timeout);
-          if (biliWindow2 && !biliWindow2.isDestroyed()) {
-            biliWindow2.destroy();
-            biliWindow2 = null;
-          }
-          resolve(videoInfo);
-        }).catch((error) => {
-          clearTimeout(timeout);
-          if (biliWindow2 && !biliWindow2.isDestroyed()) {
-            biliWindow2.destroy();
-            biliWindow2 = null;
-          }
-          reject(error);
-        });
-      }, 1500);
-    };
-    const onFail = (_, errorCode, errorDescription) => {
-      clearTimeout(timeout);
-      if (biliWindow2 && !biliWindow2.isDestroyed()) {
-        biliWindow2.destroy();
-        biliWindow2 = null;
-      }
-      reject(new Error("Page load failed: " + errorDescription));
-    };
-    biliWindow2.webContents.once("did-finish-load", onLoad);
-    biliWindow2.webContents.once("did-fail-load", onFail);
-    biliWindow2.webContents.once("destroyed", () => {
-      clearTimeout(timeout);
-      reject(new Error("Window destroyed"));
-    });
-  });
-}
-async function getVideoDuration() {
-  if (!biliWindow || biliWindow.isDestroyed()) {
-    throw new Error("Bili window is not available");
-  }
-  const code = `
-    (() => {
-      const videoDom = document.getElementsByTagName('video')[0];
-      if (!videoDom) return 0;
-      return videoDom.duration;
-    })()
-  `;
-  return safeExecuteJavaScript(biliWindow, code);
 }
 async function InsertVideoinfo(videoInfo) {
   if (!videoInfo || typeof videoInfo !== "object") {
@@ -338,36 +133,14 @@ function playNext() {
 function togglePlay() {
   mainWindow == null ? void 0 : mainWindow.webContents.send("player:toggle");
 }
-function registerShortcuts() {
-  if (!app.isPackaged) {
-    globalShortcut.register("Ctrl+Shift+D", () => {
-      mainWindow == null ? void 0 : mainWindow.webContents.openDevTools();
-    });
-    globalShortcut.register("Ctrl+Shift+B", () => {
-      if (biliWindow && !biliWindow.isDestroyed()) {
-        biliWindow.webContents.openDevTools();
-      }
-    });
-  }
-  globalShortcut.register("MediaPlayPause", () => togglePlay());
-  globalShortcut.register("MediaNextTrack", () => playNext());
-  globalShortcut.register("MediaPreviousTrack", () => playPrevious());
-}
 async function cleanup() {
   console.log("Starting cleanup...");
-  stopAudioPolling();
-  globalShortcut.unregisterAll();
-  if (tray) {
-    tray.destroy();
-    tray = null;
-  }
+  audioAnalyzer.stopPolling();
+  shortcutManager.unregisterAll();
+  trayManager.destroy();
   if (biliWindow && !biliWindow.isDestroyed()) {
     biliWindow.destroy();
     biliWindow = null;
-  }
-  if (biliWindow2 && !biliWindow2.isDestroyed()) {
-    biliWindow2.destroy();
-    biliWindow2 = null;
   }
   try {
     await dbOperations.closeDatabase();
@@ -375,41 +148,6 @@ async function cleanup() {
     console.error("Error closing database:", error);
   }
   console.log("Cleanup completed");
-}
-function startAudioPolling() {
-  stopAudioPolling();
-  audioPollInterval = setInterval(async () => {
-    if (!biliWindow || biliWindow.isDestroyed()) {
-      stopAudioPolling();
-      return;
-    }
-    try {
-      const data = await safeExecuteJavaScript(biliWindow, `
-        (() => {
-          if (!window.__audioAnalyser || !window.__audioBuffer) return null;
-          window.__audioAnalyser.getByteFrequencyData(window.__audioBuffer);
-          const arr = Array.from(window.__audioBuffer);
-          let sum = 0, peak = 0;
-          for (let i = 0; i < arr.length; i++) {
-            sum += arr[i];
-            if (arr[i] > peak) peak = arr[i];
-          }
-          const avg = sum / arr.length;
-          return { avg: avg / 255, peak: peak / 255 };
-        })()
-      `);
-      if (data && mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send("audio:data", data);
-      }
-    } catch (e) {
-    }
-  }, 80);
-}
-function stopAudioPolling() {
-  if (audioPollInterval) {
-    clearInterval(audioPollInterval);
-    audioPollInterval = null;
-  }
 }
 ipcMain.handle("window:minimize", () => mainWindow == null ? void 0 : mainWindow.minimize());
 ipcMain.handle("window:maximize", () => {
@@ -427,7 +165,7 @@ ipcMain.handle("window:close", async () => {
 });
 ipcMain.handle("player:getCurrentTime", async (event, time) => {
   try {
-    return await getVideoCurrentTime(time);
+    return await getVideoCurrentTime(biliWindow, time);
   } catch (error) {
     console.error("Error getting video current time:", error);
     return null;
@@ -435,7 +173,7 @@ ipcMain.handle("player:getCurrentTime", async (event, time) => {
 });
 ipcMain.handle("player:setVolume", async (event, volume) => {
   try {
-    return await setPlayerVolume(volume);
+    return await setPlayerVolume(biliWindow, volume);
   } catch (error) {
     console.error("Error setting volume:", error);
     return null;
@@ -443,7 +181,7 @@ ipcMain.handle("player:setVolume", async (event, volume) => {
 });
 ipcMain.handle("player:getVideoInfo", async (event, VideoBvid) => {
   try {
-    return await getVideoInfo(VideoBvid);
+    return await getVideoInfo(createBiliWindow2, VideoBvid);
   } catch (error) {
     console.error("Error getting video info:", error);
     return null;
@@ -451,17 +189,27 @@ ipcMain.handle("player:getVideoInfo", async (event, VideoBvid) => {
 });
 ipcMain.handle("player:getDuration", async () => {
   try {
-    return await getVideoDuration();
+    return await getVideoDuration(biliWindow);
   } catch (error) {
     console.error("Error getting video duration:", error);
     return null;
   }
 });
-ipcMain.handle("player:play", (event, MusicBvid) => {
+ipcMain.handle("player:play", (event, param) => {
+  let MusicBvid;
+  let startTime = 0;
+  let volume = null;
+  if (typeof param === "object" && param !== null) {
+    MusicBvid = param.bvid;
+    startTime = param.startTime || 0;
+    volume = param.volume != null ? param.volume : null;
+  } else {
+    MusicBvid = param;
+  }
   if (biliWindow && !biliWindow.isDestroyed()) {
     biliWindow.destroy();
   }
-  stopAudioPolling();
+  audioAnalyzer.stopPolling();
   biliWindow = createBiliWindow(MusicBvid);
   if (biliWindow) {
     biliWindow.webContents.on("did-finish-load", () => {
@@ -469,7 +217,24 @@ ipcMain.handle("player:play", (event, MusicBvid) => {
         (() => {
           const player = document.querySelector('video');
           if (player) {
-            setTimeout(() => player.play(), 1000);
+            setTimeout(() => {
+              player.play();
+              const st = ${JSON.stringify(startTime)};
+              if (st > 0) {
+                const trySeek = () => {
+                  if (player.readyState >= 1) {
+                    player.currentTime = st;
+                  } else {
+                    setTimeout(trySeek, 200);
+                  }
+                };
+                trySeek();
+              }
+              const vol = ${JSON.stringify(volume)};
+              if (vol != null) {
+                player.volume = Math.max(0, Math.min(1, Number(vol)));
+              }
+            }, 1000);
             setTimeout(() => {
               try {
                 if (!window.__audioAnalyser) {
@@ -483,34 +248,25 @@ ipcMain.handle("player:play", (event, MusicBvid) => {
                   window.__audioAnalyser = analyser;
                   window.__audioBuffer = new Uint8Array(analyser.frequencyBinCount);
                 }
-              } catch(e) { /* 音频分析初始化失败 */ }
+              } catch(e) { }
             }, 2000);
           }
         })()
       `;
       safeExecuteJavaScript(biliWindow, code).catch(console.error);
-      setTimeout(() => startAudioPolling(), 3e3);
+      audioAnalyzer.setWindows(mainWindow, biliWindow);
+      setTimeout(() => audioAnalyzer.startPolling(), 3e3);
     });
   }
   return true;
 });
-ipcMain.handle("player:control", (event, action) => {
-  if (!biliWindow || biliWindow.isDestroyed()) {
+ipcMain.handle("player:control", async (event, action) => {
+  try {
+    return await controlPlayback(biliWindow, action);
+  } catch (error) {
+    console.error("Error controlling playback:", error);
     return false;
   }
-  const code = `
-    (() => {
-      const player = document.querySelector('video');
-      if (!player) return false;
-      if (${JSON.stringify(action)} === 'play') {
-        player.play();
-      } else {
-        player.pause();
-      }
-      return true;
-    })()
-  `;
-  return safeExecuteJavaScript(biliWindow, code).catch(() => false);
 });
 ipcMain.handle("system:getInfo", () => {
   try {
@@ -521,7 +277,7 @@ ipcMain.handle("system:getInfo", () => {
       electronVersion: process.versions.electron,
       os: `${os.type()} ${os.release()}`,
       arch: os.arch(),
-      memory: `${Math.round(usedMem / 1024 / 1024 / 1024 * 100) / 100} GB / ${Math.round(totalMem / 1024 / 1024 / 1024 * 100) / 100} GB`,
+      memory: `${formatMemorySize(usedMem)} / ${formatMemorySize(totalMem)}`,
       platform: process.platform,
       nodeVersion: process.versions.node,
       chromeVersion: process.versions.chrome
@@ -532,7 +288,7 @@ ipcMain.handle("system:getInfo", () => {
   }
 });
 ipcMain.handle("shell:openExternal", (event, url) => {
-  if (typeof url === "string" && url.startsWith("https://")) {
+  if (isSafeUrl(url)) {
     shell.openExternal(url);
   }
 });
@@ -540,6 +296,37 @@ ipcMain.handle("theme:set", (event, isDark) => {
   if (!mainWindow || mainWindow.isDestroyed())
     return;
   mainWindow.setBackgroundColor(isDark ? "#0a0a0a" : "#ffffff");
+});
+ipcMain.handle("select-data-directory", async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ["openDirectory"],
+    title: "选择数据存储目录"
+  });
+  if (result.canceled || result.filePaths.length === 0) {
+    return { success: false };
+  }
+  const selectedPath = result.filePaths[0];
+  try {
+    const configPath = app.isPackaged ? path.join(path.dirname(process.execPath), "data-dir.cfg") : path.join(__dirname, "data-dir.cfg");
+    fs.writeFileSync(configPath, selectedPath, "utf-8");
+    return { success: true, path: selectedPath };
+  } catch (error) {
+    console.error("保存数据目录失败:", error);
+    return { success: false, error: error.message };
+  }
+});
+ipcMain.handle("get-data-directory", () => {
+  try {
+    const configPath = app.isPackaged ? path.join(path.dirname(process.execPath), "data-dir.cfg") : path.join(__dirname, "data-dir.cfg");
+    if (fs.existsSync(configPath)) {
+      const dir = fs.readFileSync(configPath, "utf-8").trim();
+      if (dir && fs.existsSync(dir)) {
+        return { path: dir };
+      }
+    }
+  } catch {
+  }
+  return { path: null };
 });
 ipcMain.handle("db:getPlaylists", async () => {
   try {
@@ -629,9 +416,11 @@ ipcMain.handle("db:updateVideo", async (event, { bvid, title, startTime, endTime
   }
 });
 ipcMain.handle("db:deleteVideo", async (event, bvid) => {
-  const sql = "DELETE FROM video WHERE video_bvid = ?";
   try {
-    await dbOperations.insert(sql, [bvid]);
+    dbOperations.runTransaction(() => {
+      dbOperations.insert("DELETE FROM videolist_videos WHERE video_bvid = ?", [bvid]);
+      dbOperations.insert("DELETE FROM video WHERE video_bvid = ?", [bvid]);
+    });
     return true;
   } catch (error) {
     console.error("Error deleting video:", error);
@@ -665,8 +454,26 @@ if (!gotTheLock) {
   app.whenReady().then(async () => {
     initDatabase();
     mainWindow = createMainWindow();
-    createTray();
-    registerShortcuts();
+    trayManager.createTray(path.join(__dirname, "assets/bilibili.png"), {
+      onShowWindow: () => {
+        if (mainWindow) {
+          mainWindow.show();
+          mainWindow.focus();
+        }
+      },
+      onPlayPrevious: () => playPrevious(),
+      onTogglePlay: () => togglePlay(),
+      onPlayNext: () => playNext(),
+      onQuit: () => app.quit()
+    });
+    shortcutManager.registerMediaKeys({
+      onTogglePlay: () => togglePlay(),
+      onPlayPrevious: () => playPrevious(),
+      onPlayNext: () => playNext()
+    });
+    shortcutManager.registerDevToolsKeys(app.isPackaged, {
+      onOpenDevTools: () => mainWindow == null ? void 0 : mainWindow.webContents.openDevTools()
+    });
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) {
         mainWindow = createMainWindow();
