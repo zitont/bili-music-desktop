@@ -1,4 +1,4 @@
-const { BrowserWindow, globalShortcut } = require('electron');
+import { BrowserWindow, globalShortcut } from 'electron';
 // 创建Bilibili窗口
 function createBiliWindow(bvid) {
   if (!bvid) {
@@ -133,7 +133,7 @@ function registerGlobalShortcuts() {
   });
 }
 
-module.exports = {
+export {
   createBiliWindow,
   createBiliWindow2,
   handleWindowFocus,

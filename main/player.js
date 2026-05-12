@@ -1,4 +1,4 @@
-const { safeExecuteJavaScript, WINDOW_LOAD_TIMEOUT } = require('./utils');
+import { safeExecuteJavaScript, WINDOW_LOAD_TIMEOUT } from './utils';
 
 /**
  * 获取视频当前播放时间
@@ -202,7 +202,7 @@ function getVideoInfo(createBiliWindow2, VideoBvid) {
   });
 }
 
-module.exports = {
+export {
   getVideoCurrentTime,
   setPlayerVolume,
   getVideoDuration,

@@ -53,7 +53,7 @@ function formatMemorySize(bytes) {
   return `${Math.round(gb * 100) / 100} GB`;
 }
 
-module.exports = {
+export {
   WINDOW_LOAD_TIMEOUT,
   safeExecuteJavaScript,
   isSafeUrl,

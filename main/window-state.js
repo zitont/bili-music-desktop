@@ -1,5 +1,5 @@
-const path = require('path');
-const fs = require('fs');
+import path from 'path';
+import fs from 'fs';
 
 // 默认窗口尺寸
 const DEFAULT_WINDOW_STATE = {
@@ -65,7 +65,7 @@ function saveWindowState(window, userDataPath) {
   }
 }
 
-module.exports = {
+export {
   getWindowStatePath,
   loadWindowState,
   saveWindowState,

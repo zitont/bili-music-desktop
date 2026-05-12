@@ -1,4 +1,4 @@
-const { safeExecuteJavaScript } = require('./utils');
+import { safeExecuteJavaScript } from './utils';
 
 /**
  * 音频分析器
@@ -96,4 +96,4 @@ class AudioAnalyzer {
   }
 }
 
-module.exports = { AudioAnalyzer };
+export { AudioAnalyzer };

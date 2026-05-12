@@ -1,4 +1,4 @@
-const { Tray, Menu, nativeImage } = require('electron');
+import { Tray, Menu, nativeImage } from 'electron';
 
 /**
  * 系统托盘管理器
@@ -59,4 +59,4 @@ class TrayManager {
   }
 }
 
-module.exports = { TrayManager };
+export { TrayManager };

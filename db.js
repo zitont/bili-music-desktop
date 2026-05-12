@@ -1,7 +1,7 @@
-const { app } = require('electron');
-const path = require('path');
-const fs = require('fs');
-const Database = require('better-sqlite3');
+import { app } from 'electron';
+import path from 'path';
+import fs from 'fs';
+import Database from 'better-sqlite3';
 
 let db;
 
@@ -190,7 +190,7 @@ function closeDatabase() {
   }
 }
 
-module.exports = {
+export {
   initDatabase,
   ensureTables,
   executeQuery,

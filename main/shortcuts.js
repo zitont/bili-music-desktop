@@ -1,4 +1,4 @@
-const { globalShortcut } = require('electron');
+import { globalShortcut } from 'electron';
 
 /**
  * 快捷键管理器
@@ -82,4 +82,4 @@ class ShortcutManager {
   }
 }
 
-module.exports = { ShortcutManager };
+export { ShortcutManager };

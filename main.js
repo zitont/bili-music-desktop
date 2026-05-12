@@ -1,22 +1,21 @@
-const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
-const path = require('path');
-const fs = require('fs');
-const os = require('os');
-const createBiliWindow = require('./windows').createBiliWindow;
-const createBiliWindow2 = require('./windows').createBiliWindow2;
-const dbOperations = require('./db');
-const { loadWindowState, saveWindowState: saveWindowStateToFile } = require('./main/window-state');
-const { safeExecuteJavaScript, isSafeUrl, formatMemorySize } = require('./main/utils');
-const {
+import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron';
+import path from 'path';
+import fs from 'fs';
+import os from 'os';
+import { createBiliWindow, createBiliWindow2 } from './windows';
+import * as dbOperations from './db';
+import { loadWindowState, saveWindowState as saveWindowStateToFile } from './main/window-state';
+import { safeExecuteJavaScript, isSafeUrl, formatMemorySize } from './main/utils';
+import {
   getVideoCurrentTime,
   setPlayerVolume,
   getVideoDuration,
   controlPlayback,
   getVideoInfo,
-} = require('./main/player');
-const { AudioAnalyzer } = require('./main/audio-analyzer');
-const { ShortcutManager } = require('./main/shortcuts');
-const { TrayManager } = require('./main/tray');
+} from './main/player';
+import { AudioAnalyzer } from './main/audio-analyzer';
+import { ShortcutManager } from './main/shortcuts';
+import { TrayManager } from './main/tray';
 
 // 窗口实例
 let mainWindow = null;
