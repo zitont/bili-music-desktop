@@ -129,10 +129,12 @@ const filteredItems = computed(() => {
 });
 
 function handoffvideo(item: VideoItem, index: number) {
-  setVideoBvid(item.video_bvid);
+  const startTime = item.video_startTime || 0;
+  const endTime = item.video_endtime || item.video_duration;
+  setVideoBvid(item.video_bvid, startTime, volume.value / 100);
   window.electronAPI.VideoPlaySet(playback_status.value ? 1 : 0);
   playback_status.value = true;
-  duration.value = item.video_duration;
+  duration.value = endTime - startTime;
   videotitle.value = item.video_title;
   videoimg_url.value = item.video_img_url;
   video_bvid.value = item.video_bvid;

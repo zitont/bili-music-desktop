@@ -54,6 +54,19 @@
         <div class="card-divider"></div>
 
         <div class="card-section">
+          <h2 class="card-section-title">数据</h2>
+          <div class="setting-row">
+            <div class="setting-info">
+              <span class="setting-label">数据存储位置</span>
+              <span class="setting-desc">{{ dataDir || '默认位置（点击修改）' }}</span>
+            </div>
+            <n-button size="small" @click="selectDataDir">修改</n-button>
+          </div>
+        </div>
+
+        <div class="card-divider"></div>
+
+        <div class="card-section">
           <h2 class="card-section-title">关于</h2>
           <div class="setting-row link-row" @click="goAbout">
             <div class="setting-info">
@@ -69,13 +82,17 @@
 </template>
 
 <script setup lang="ts">
-import { NScrollbar, NSwitch, NSelect } from 'naive-ui';
+import { ref, onMounted } from 'vue';
+import { NScrollbar, NSwitch, NSelect, NButton, useMessage } from 'naive-ui';
 import { useRouter } from 'vue-router';
 import { useThemeStore, useAnimationStore } from '@/store';
 
 const router = useRouter();
 const themeStore = useThemeStore();
 const animStore = useAnimationStore();
+const message = useMessage();
+
+const dataDir = ref('');
 
 const animOptions = [
   '涟漪扩散',
@@ -86,9 +103,37 @@ const animOptions = [
   '极光流彩',
 ];
 
+async function selectDataDir() {
+  try {
+    const result = await window.electronAPI.selectDataDirectory();
+    if (result.success) {
+      dataDir.value = result.path;
+      message.success('数据目录已更新，重启后生效');
+    }
+  } catch (error) {
+    console.error('选择数据目录失败:', error);
+    message.error('选择数据目录失败');
+  }
+}
+
+async function loadDataDir() {
+  try {
+    const result = await window.electronAPI.getDataDirectory();
+    if (result.path) {
+      dataDir.value = result.path;
+    }
+  } catch {
+    // 忽略
+  }
+}
+
 function goAbout() {
   router.push('/about');
 }
+
+onMounted(() => {
+  loadDataDir();
+});
 </script>
 
 <style scoped>

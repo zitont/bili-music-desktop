@@ -4,8 +4,8 @@
  * @param bvid 视频BVID
  * @returns 无返回值
  */
-export function setVideoBvid(bvid) {
-  window.electronAPI.VideoSetBvid(bvid);
+export function setVideoBvid(bvid, startTime = 0, volume = null) {
+  window.electronAPI.VideoSetBvid(bvid, startTime, volume);
 }
 /**
  * 获取视频列表的ID

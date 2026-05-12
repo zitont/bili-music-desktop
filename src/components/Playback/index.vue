@@ -104,6 +104,8 @@ const { duration, playback_status, video_bvid, volume, videoimg_url, videotitle 
   storeToRefs(play);
 
 const currentTime = ref(0);
+const trackStartTime = ref(0);
+const trackEndTime = ref(0);
 const volumes = ref(volume.value);
 const isPlaying = ref(playback_status.value);
 const modetxt = ref('列表循环');
@@ -129,23 +131,27 @@ function platbackmode() {
 function playPrevious() {
   if (lists.value.length === 0) return;
   currentIndex.value = currentIndex.value > 0 ? currentIndex.value - 1 : lists.value.length - 1;
-  applyTrack(lists.value[currentIndex.value]);
   currentTime.value = 0;
+  applyTrack(lists.value[currentIndex.value]);
 }
 
 function playNext() {
   if (lists.value.length === 0) return;
   currentIndex.value = currentIndex.value < lists.value.length - 1 ? currentIndex.value + 1 : 0;
-  applyTrack(lists.value[currentIndex.value]);
   currentTime.value = 0;
+  applyTrack(lists.value[currentIndex.value]);
 }
 
 function applyTrack(track: any) {
   videoimg_url.value = track.video_img_url;
   videotitle.value = track.video_title;
   video_bvid.value = track.video_bvid;
-  window.electronAPI.VideoSetBvid(track.video_bvid);
-  duration.value = track.video_duration;
+  const start = track.video_startTime || 0;
+  const end = track.video_endtime || track.video_duration;
+  trackStartTime.value = start;
+  trackEndTime.value = end;
+  duration.value = end - start;
+  window.electronAPI.VideoSetBvid(track.video_bvid, start, volume.value / 100);
 }
 
 function volumeChange(value: number) {
@@ -178,7 +184,7 @@ function pollProgress() {
   if (video_bvid.value === '' || isSeeking.value) return;
   window.electronAPI.VideoCurrentTime().then((ref: number | null) => {
     if (!isSeeking.value && ref != null) {
-      currentTime.value = ref;
+      currentTime.value = Math.max(0, ref - trackStartTime.value);
       checkTrackEnd();
     }
   });
@@ -199,7 +205,7 @@ function stopPoll() {
 function seekTo(value: number) {
   isSeeking.value = true;
   currentTime.value = value;
-  window.electronAPI.VideoCurrentTime(value);
+  window.electronAPI.VideoCurrentTime(value + trackStartTime.value);
   if (seekTimer) clearTimeout(seekTimer);
   seekTimer = setTimeout(() => {
     isSeeking.value = false;
@@ -211,11 +217,11 @@ function handleListLoop() {
   currentIndex.value = currentIndex.value < lists.value.length - 1 ? currentIndex.value + 1 : 0;
   currentTime.value = 0;
   applyTrack(lists.value[currentIndex.value]);
-  duration.value = lists.value[currentIndex.value].video_duration - 1;
 }
 
 function resetCurrentTime() {
-  window.electronAPI.VideoCurrentTime(0);
+  window.electronAPI.VideoCurrentTime(trackStartTime.value);
+  currentTime.value = 0;
 }
 
 function handleRandomLoop() {
@@ -257,6 +263,8 @@ function persistState() {
     duration: duration.value,
     volume: volume.value,
     playback_status: isPlaying.value,
+    trackStartTime: trackStartTime.value,
+    trackEndTime: trackEndTime.value,
   }));
 }
 
@@ -272,12 +280,14 @@ function restoreState() {
       volume.value = saved.volume ?? 60;
       volumes.value = saved.volume ?? 60;
       duration.value = saved.duration || 0;
+      trackStartTime.value = saved.trackStartTime || 0;
+      trackEndTime.value = saved.trackEndTime || 0;
       if (saved.playback_status) {
         isPlaying.value = true;
         playback_status.value = true;
       }
-      window.electronAPI.VideoSetVolume((saved.volume ?? 60) / 100);
-      window.electronAPI.VideoSetBvid(saved.video_bvid);
+      const savedVolume = (saved.volume ?? 60) / 100;
+      window.electronAPI.VideoSetBvid(saved.video_bvid, saved.trackStartTime || 0, savedVolume);
     }
   } catch {
     localStorage.removeItem(STORAGE_KEY);

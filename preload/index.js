@@ -8,7 +8,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // 视频播放控制
   VideoPlaySet: (action) => ipcRenderer.invoke('player:control', action === 0 ? 'play' : 'pause'),
-  VideoSetBvid: (bvid) => ipcRenderer.invoke('player:play', bvid),
+  VideoSetBvid: (bvid, startTime, volume) => ipcRenderer.invoke('player:play', { bvid, startTime, volume }),
   VideoCurrentTime: (time) => ipcRenderer.invoke('player:getCurrentTime', time),
   VideoDuration: () => ipcRenderer.invoke('player:getDuration'),
   VideoSetVolume: (volume) => ipcRenderer.invoke('player:setVolume', volume),
@@ -34,6 +34,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // 外部链接
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
+
+  // 数据目录
+  selectDataDirectory: () => ipcRenderer.invoke('select-data-directory'),
+  getDataDirectory: () => ipcRenderer.invoke('get-data-directory'),
 
   // 主进程事件监听（托盘/媒体键）
   onTogglePlay: (callback) => ipcRenderer.on('player:toggle', callback),

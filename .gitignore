@@ -24,6 +24,7 @@ dist-electron
 *.db-shm
 *.db-wal
 data/
+data-dir.cfg
 
 # 构建产物
 build/

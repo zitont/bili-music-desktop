@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, globalShortcut, Tray, Menu, nativeImage, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, globalShortcut, Tray, Menu, nativeImage, shell, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -232,7 +232,7 @@ async function getVideoCurrentTime(time) {
  */
 async function setPlayerVolume(volume) {
   if (!biliWindow || biliWindow.isDestroyed()) {
-    throw new Error('Bili window is not available');
+    return null;
   }
 
   const volumeParam = JSON.stringify(volume);
@@ -619,8 +619,18 @@ ipcMain.handle('player:getDuration', async () => {
   }
 });
 
-ipcMain.handle('player:play', (event, MusicBvid) => {
-  // 关闭之前的窗口
+ipcMain.handle('player:play', (event, param) => {
+  let MusicBvid;
+  let startTime = 0;
+  let volume = null;
+  if (typeof param === 'object' && param !== null) {
+    MusicBvid = param.bvid;
+    startTime = param.startTime || 0;
+    volume = param.volume != null ? param.volume : null;
+  } else {
+    MusicBvid = param;
+  }
+
   if (biliWindow && !biliWindow.isDestroyed()) {
     biliWindow.destroy();
   }
@@ -635,7 +645,24 @@ ipcMain.handle('player:play', (event, MusicBvid) => {
         (() => {
           const player = document.querySelector('video');
           if (player) {
-            setTimeout(() => player.play(), 1000);
+            setTimeout(() => {
+              player.play();
+              const st = ${JSON.stringify(startTime)};
+              if (st > 0) {
+                const trySeek = () => {
+                  if (player.readyState >= 1) {
+                    player.currentTime = st;
+                  } else {
+                    setTimeout(trySeek, 200);
+                  }
+                };
+                trySeek();
+              }
+              const vol = ${JSON.stringify(volume)};
+              if (vol != null) {
+                player.volume = Math.max(0, Math.min(1, Number(vol)));
+              }
+            }, 1000);
             setTimeout(() => {
               try {
                 if (!window.__audioAnalyser) {
@@ -649,7 +676,7 @@ ipcMain.handle('player:play', (event, MusicBvid) => {
                   window.__audioAnalyser = analyser;
                   window.__audioBuffer = new Uint8Array(analyser.frequencyBinCount);
                 }
-              } catch(e) { /* 音频分析初始化失败 */ }
+              } catch(e) { }
             }, 2000);
           }
         })()
@@ -717,6 +744,46 @@ ipcMain.handle('shell:openExternal', (event, url) => {
 ipcMain.handle('theme:set', (event, isDark) => {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   mainWindow.setBackgroundColor(isDark ? '#0a0a0a' : '#ffffff');
+});
+
+// 选择数据目录
+ipcMain.handle('select-data-directory', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory'],
+    title: '选择数据存储目录',
+  });
+  if (result.canceled || result.filePaths.length === 0) {
+    return { success: false };
+  }
+  const selectedPath = result.filePaths[0];
+  try {
+    const configPath = app.isPackaged
+      ? path.join(path.dirname(process.execPath), 'data-dir.cfg')
+      : path.join(__dirname, 'data-dir.cfg');
+    fs.writeFileSync(configPath, selectedPath, 'utf-8');
+    return { success: true, path: selectedPath };
+  } catch (error) {
+    console.error('保存数据目录失败:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// 获取当前数据目录
+ipcMain.handle('get-data-directory', () => {
+  try {
+    const configPath = app.isPackaged
+      ? path.join(path.dirname(process.execPath), 'data-dir.cfg')
+      : path.join(__dirname, 'data-dir.cfg');
+    if (fs.existsSync(configPath)) {
+      const dir = fs.readFileSync(configPath, 'utf-8').trim();
+      if (dir && fs.existsSync(dir)) {
+        return { path: dir };
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return { path: null };
 });
 
 // 数据库操作
