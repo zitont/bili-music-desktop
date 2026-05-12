@@ -1,19 +1,21 @@
 <template>
   <div class="playback">
-    <!-- 进度条 -->
-    <div class="progress-bar" :class="{ hovering: isProgressHover }" @mouseenter="isProgressHover = true" @mouseleave="isProgressHover = false">
+    <div
+      class="progress-bar"
+      :class="{ hovering: isProgressHover }"
+      @mouseenter="isProgressHover = true"
+      @mouseleave="isProgressHover = false"
+    >
       <n-slider
         v-model:value="currentTime"
-        :max="durations"
-        :tooltip="false"
-        :format-tooltip="() => ''"
-        @update:value="dletime"
+        :max="duration"
+        :tooltip="true"
+        :format-tooltip="(v: number) => formatTime(v)"
+        @update:value="seekTo"
       />
     </div>
 
-    <!-- 控制栏 -->
     <div class="controls">
-      <!-- 左侧：封面和标题 -->
       <div class="left-section">
         <div class="cover-wrapper" :class="{ playing: isPlaying }">
           <n-image
@@ -26,38 +28,42 @@
             class="cover-img"
           />
           <div v-else class="cover-placeholder">
-            <svg-icon iconName="icon-shoucangjia" color="#4a4854"></svg-icon>
+            <svg-icon icon-name="icon-music"></svg-icon>
           </div>
         </div>
         <div class="track-info">
-          <span class="track-title">{{ videotitle || '未播放' }}</span>
+          <div ref="titleWrapRef" class="track-title-wrap">
+            <span class="track-title" :class="{ active: isMarqueeActive }" :title="videotitle || '未播放'">
+              <span class="track-title-text">{{ videotitle || '未播放' }}</span>
+              <span v-if="isMarqueeActive" class="track-title-text">{{ videotitle }}</span>
+            </span>
+          </div>
         </div>
       </div>
 
-      <!-- 中间：播放控制 -->
       <div class="center-section">
         <div class="playback-controls">
           <button class="ctrl-btn" @click="playPrevious">
-            <svg-icon iconName="icon-bofangqixiashou1" color="#8a8890"></svg-icon>
+            <svg-icon icon-name="icon-bofangqixiashou1" class="ctrl-icon"></svg-icon>
           </button>
           <button class="ctrl-btn ctrl-btn-main" @click="VideoPlaySet">
-            <svg-icon :iconName="isPlaying ? 'icon-zanting1' : 'icon-bofang1'" color="#08080a"></svg-icon>
+            <svg-icon
+              :icon-name="isPlaying ? 'icon-zanting1' : 'icon-bofang1'"
+              class="main-icon"
+            ></svg-icon>
           </button>
           <button class="ctrl-btn" @click="playNext">
-            <svg-icon iconName="icon-bofangqixiashou" color="#8a8890"></svg-icon>
+            <svg-icon icon-name="icon-bofangqixiashou" class="ctrl-icon"></svg-icon>
           </button>
         </div>
-        <span class="time-display">
-          {{ formatTime(currentTime) }} / {{ timeduration }}
-        </span>
+        <span class="time-display"> {{ formatTime(currentTime) }} / {{ formatTime(duration) }} </span>
       </div>
 
-      <!-- 右侧：播放模式和音量 -->
       <div class="right-section">
         <n-tooltip trigger="hover" :show-arrow="false">
           <template #trigger>
             <button class="ctrl-btn" @click="platbackmode">
-              <svg-icon :iconName="playModeIcon" color="#8a8890"></svg-icon>
+              <svg-icon :icon-name="playModeIcon" class="ctrl-icon"></svg-icon>
             </button>
           </template>
           <span class="tooltip-text">{{ modetxt }}</span>
@@ -65,7 +71,7 @@
 
         <div class="volume-control">
           <button class="ctrl-btn">
-            <svg-icon iconName="icon-shengyin-kai" color="#8a8890"></svg-icon>
+            <svg-icon icon-name="icon-shengyin-kai" class="ctrl-icon"></svg-icon>
           </button>
           <n-slider
             v-model:value="volumes"
@@ -82,27 +88,29 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted, computed } from 'vue';
+import { ref, watch, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { useMenusStore, usePlayStore, usePlaybackMode, usePlayList } from '../../store';
 import { storeToRefs } from 'pinia';
 import { formatTime } from '../../utils/functions.js';
 
-const store = useMenusStore();
+useMenusStore();
 const play = usePlayStore();
 const playbackmode = usePlaybackMode();
 const playlist = usePlayList();
 
-const { lists, listnobor } = storeToRefs(playlist);
+const { lists, currentIndex } = storeToRefs(playlist);
 const { mode } = storeToRefs(playbackmode);
-const { duration, playback_status, video_bvid, volume, videoimg_url, videotitle } = storeToRefs(play);
+const { duration, playback_status, video_bvid, volume, videoimg_url, videotitle } =
+  storeToRefs(play);
 
-const timeduration = ref(formatTime(duration.value));
 const currentTime = ref(0);
 const volumes = ref(volume.value);
-const durations = ref(100);
 const isPlaying = ref(playback_status.value);
 const modetxt = ref('列表循环');
 const isProgressHover = ref(false);
+const isSeeking = ref(false);
+const titleWrapRef = ref<HTMLElement | null>(null);
+const isMarqueeActive = ref(false);
 
 const playModeIcon = computed(() => {
   switch (mode.value) {
@@ -120,15 +128,15 @@ function platbackmode() {
 
 function playPrevious() {
   if (lists.value.length === 0) return;
-  listnobor.value = listnobor.value > 0 ? listnobor.value - 1 : lists.value.length - 1;
-  applyTrack(lists.value[listnobor.value]);
+  currentIndex.value = currentIndex.value > 0 ? currentIndex.value - 1 : lists.value.length - 1;
+  applyTrack(lists.value[currentIndex.value]);
   currentTime.value = 0;
 }
 
 function playNext() {
   if (lists.value.length === 0) return;
-  listnobor.value = listnobor.value < lists.value.length - 1 ? listnobor.value + 1 : 0;
-  applyTrack(lists.value[listnobor.value]);
+  currentIndex.value = currentIndex.value < lists.value.length - 1 ? currentIndex.value + 1 : 0;
+  applyTrack(lists.value[currentIndex.value]);
   currentTime.value = 0;
 }
 
@@ -149,36 +157,61 @@ function volumeChange(value: number) {
 
 function VideoPlaySet() {
   if (video_bvid.value !== '') {
-    durations.value = duration.value;
     window.electronAPI.VideoPlaySet(isPlaying.value ? 1 : 0);
-    timeduration.value = formatTime(duration.value);
     playback_status.value = !isPlaying.value;
     isPlaying.value = !isPlaying.value;
   }
 }
 
-function VideoCurrentTime(setcurrenttime?: number) {
-  if (setcurrenttime != null) {
-    window.electronAPI.VideoCurrentTime(setcurrenttime).then((ref: number) => {
-      currentTime.value = ref;
-    });
+function checkTrackEnd() {
+  if (Math.abs(currentTime.value - duration.value) <= 2) {
+    if (mode.value === 0) handleListLoop();
+    else if (mode.value === 1) resetCurrentTime();
+    else if (mode.value === 2) handleRandomLoop();
   }
+}
 
-  window.electronAPI.VideoCurrentTime().then((ref: number) => {
-    currentTime.value = ref;
-    if (Math.abs(currentTime.value - duration.value) <= 2) {
-      if (mode.value === 0) handleListLoop();
-      else if (mode.value === 1) resetCurrentTime();
-      else if (mode.value === 2) handleRandomLoop();
+let seekTimer: ReturnType<typeof setTimeout> | null = null;
+let pollTimer: ReturnType<typeof setInterval> | null = null;
+
+function pollProgress() {
+  if (video_bvid.value === '' || isSeeking.value) return;
+  window.electronAPI.VideoCurrentTime().then((ref: number | null) => {
+    if (!isSeeking.value && ref != null) {
+      currentTime.value = ref;
+      checkTrackEnd();
     }
   });
 }
 
+function startPoll() {
+  stopPoll();
+  pollTimer = setInterval(pollProgress, 500);
+}
+
+function stopPoll() {
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+}
+
+function seekTo(value: number) {
+  isSeeking.value = true;
+  currentTime.value = value;
+  window.electronAPI.VideoCurrentTime(value);
+  if (seekTimer) clearTimeout(seekTimer);
+  seekTimer = setTimeout(() => {
+    isSeeking.value = false;
+    pollProgress();
+  }, 400);
+}
+
 function handleListLoop() {
-  listnobor.value = listnobor.value < lists.value.length - 1 ? listnobor.value + 1 : 0;
+  currentIndex.value = currentIndex.value < lists.value.length - 1 ? currentIndex.value + 1 : 0;
   currentTime.value = 0;
-  applyTrack(lists.value[listnobor.value]);
-  duration.value = lists.value[listnobor.value].video_duration - 1;
+  applyTrack(lists.value[currentIndex.value]);
+  duration.value = lists.value[currentIndex.value].video_duration - 1;
 }
 
 function resetCurrentTime() {
@@ -186,52 +219,107 @@ function resetCurrentTime() {
 }
 
 function handleRandomLoop() {
-  listnobor.value = Math.floor(Math.random() * lists.value.length);
+  currentIndex.value = Math.floor(Math.random() * lists.value.length);
   currentTime.value = 0;
-  applyTrack(lists.value[listnobor.value]);
+  applyTrack(lists.value[currentIndex.value]);
 }
 
-const timer = ref<ReturnType<typeof setInterval> | null>(null);
-
-function starTimer() {
-  timeduration.value = formatTime(duration.value);
-  if (timer.value) clearInterval(timer.value);
-  timer.value = setInterval(() => {
-    if (video_bvid.value !== '') VideoCurrentTime();
-  }, 1000);
+function checkMarqueeOverflow() {
+  const wrap = titleWrapRef.value;
+  if (!wrap || !videotitle.value) {
+    isMarqueeActive.value = false;
+    return;
+  }
+  const measure = document.createElement('span');
+  measure.textContent = videotitle.value;
+  Object.assign(measure.style, {
+    position: 'fixed',
+    visibility: 'hidden',
+    whiteSpace: 'nowrap',
+    top: '-9999px',
+    pointerEvents: 'none',
+    fontSize: '15px',
+    fontWeight: '600',
+    paddingRight: '48px',
+  });
+  document.body.appendChild(measure);
+  isMarqueeActive.value = measure.offsetWidth > wrap.clientWidth;
+  document.body.removeChild(measure);
 }
 
-function stopTimer() {
-  if (timer.value) {
-    clearInterval(timer.value);
-    timer.value = null;
+const STORAGE_KEY = 'bili-music-playback';
+
+function persistState() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    video_bvid: video_bvid.value,
+    videotitle: videotitle.value,
+    videoimg_url: videoimg_url.value,
+    duration: duration.value,
+    volume: volume.value,
+    playback_status: isPlaying.value,
+  }));
+}
+
+function restoreState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    if (saved.video_bvid) {
+      video_bvid.value = saved.video_bvid;
+      videotitle.value = saved.videotitle || '';
+      videoimg_url.value = saved.videoimg_url || '';
+      volume.value = saved.volume ?? 60;
+      volumes.value = saved.volume ?? 60;
+      duration.value = saved.duration || 0;
+      if (saved.playback_status) {
+        isPlaying.value = true;
+        playback_status.value = true;
+      }
+      window.electronAPI.VideoSetVolume((saved.volume ?? 60) / 100);
+      window.electronAPI.VideoSetBvid(saved.video_bvid);
+    }
+  } catch {
+    localStorage.removeItem(STORAGE_KEY);
   }
 }
 
-function dletime(value: number) {
-  stopTimer();
-  VideoCurrentTime(value);
-  setTimeout(() => starTimer(), 1000);
-}
+watch([video_bvid, videotitle, videoimg_url, duration, volume], persistState, { deep: true });
 
 watch(
   () => duration.value,
   () => {
     isPlaying.value = playback_status.value;
-    durations.value = duration.value;
-    timeduration.value = formatTime(duration.value);
+  }
+);
+
+watch(videotitle, (newVal, oldVal) => {
+  if (newVal !== oldVal) {
+    isMarqueeActive.value = false;
+    nextTick(checkMarqueeOverflow);
+  }
+});
+
+watch(
+  () => titleWrapRef.value?.clientWidth,
+  () => {
+    isMarqueeActive.value = false;
+    nextTick(checkMarqueeOverflow);
   }
 );
 
 onMounted(() => {
-  starTimer();
+  restoreState();
+  startPoll();
+  nextTick(checkMarqueeOverflow);
   window.electronAPI.onTogglePlay(() => VideoPlaySet());
   window.electronAPI.onPlayPrevious(() => playPrevious());
   window.electronAPI.onPlayNext(() => playNext());
 });
 
 onUnmounted(() => {
-  stopTimer();
+  stopPoll();
+  if (seekTimer) clearTimeout(seekTimer);
 });
 </script>
 
@@ -240,7 +328,9 @@ onUnmounted(() => {
   height: 80px;
   display: flex;
   flex-direction: column;
-  background: #0c0c10;
+  background: var(--surface-2);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .progress-bar {
@@ -255,10 +345,16 @@ onUnmounted(() => {
 
 .progress-bar :deep(.n-slider) {
   --n-rail-height: 4px !important;
-  --n-handle-size: 12px;
-  --n-fill-color: #c9a55c;
-  --n-fill-color-hover: #dbb978;
-  --n-handle-color: #fff;
+  --n-handle-size: 0;
+  --n-fill-color: var(--color-primary);
+  --n-fill-color-hover: var(--color-primary-hover);
+  --n-handle-color: var(--text-inverse);
+  --n-rail-color: var(--b-border);
+  --n-rail-color-hover: var(--b-border);
+}
+
+.progress-bar:hover :deep(.n-slider) {
+  --n-handle-size: 8px;
 }
 
 .progress-bar.hovering :deep(.n-slider) {
@@ -287,20 +383,27 @@ onUnmounted(() => {
 }
 
 .cover-wrapper.playing .cover-img {
-  box-shadow: 0 0 12px rgba(201, 165, 92, 0.2);
+  box-shadow: 0 0 12px var(--color-primary-glow);
   animation: coverGlow 2.5s ease-in-out infinite;
 }
 
 @keyframes coverGlow {
-  0%, 100% { box-shadow: 0 0 12px rgba(201, 165, 92, 0.15); }
-  50% { box-shadow: 0 0 20px rgba(201, 165, 92, 0.3); }
+  0%,
+  100% {
+    box-shadow: 0 0 12px var(--color-primary-glow);
+  }
+  50% {
+    box-shadow: 0 0 20px var(--shadow-glow);
+  }
 }
 
 .cover-img {
   border-radius: 8px;
   flex-shrink: 0;
   overflow: hidden;
-  transition: box-shadow var(--duration-normal) var(--ease-in-out), transform var(--duration-normal) var(--ease-out);
+  transition:
+    box-shadow var(--duration-normal) var(--ease-in-out),
+    transform var(--duration-normal) var(--ease-out);
   cursor: pointer;
 }
 
@@ -312,28 +415,55 @@ onUnmounted(() => {
   width: 52px;
   height: 52px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface-2);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   font-size: 20px;
+  color: var(--text-tertiary);
+}
+
+.ctrl-icon {
+  color: var(--text-secondary);
+}
+
+.main-icon {
+  color: var(--text-inverse);
 }
 
 .track-info {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  overflow: hidden;
+}
+
+.track-title-wrap {
+  overflow: hidden;
 }
 
 .track-title {
+  display: inline-flex;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.track-title.active {
+  animation: marquee 14s linear infinite;
+}
+
+.track-title-text {
   font-size: 15px;
   font-weight: 600;
-  color: #e8e6e0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  color: var(--text-primary);
   line-height: 1.4;
+  padding-right: 48px;
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
 }
 
 .center-section {
@@ -365,27 +495,27 @@ onUnmounted(() => {
 }
 
 .ctrl-btn:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--b-hover-neutral);
 }
 
 .ctrl-btn:hover :deep(.svg-icon) {
-  color: #e8e6e0;
+  color: var(--text-primary);
 }
 
 .ctrl-btn-main {
   width: 44px;
   height: 44px;
-  background: linear-gradient(135deg, #c9a55c, #a8873e);
+  background: var(--gradient-primary);
   font-size: 18px;
 }
 
 .ctrl-btn-main:hover {
-  background: linear-gradient(135deg, #dbb978, #c9a55c);
-  box-shadow: 0 0 16px rgba(201, 165, 92, 0.3);
+  background: var(--gradient-primary-hover);
+  box-shadow: 0 0 16px var(--shadow-glow);
 }
 
 .ctrl-btn-main:active {
-  background: linear-gradient(135deg, #a8873e, #8b6d2f);
+  background: var(--gradient-primary-active);
   transform: scale(0.93);
 }
 
@@ -399,7 +529,7 @@ onUnmounted(() => {
 
 .time-display {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
   font-weight: 500;
 }

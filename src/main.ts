@@ -1,10 +1,11 @@
-import { createApp } from "vue";
-import { createPinia } from "pinia";
+import { createApp } from 'vue';
+import { createPinia } from 'pinia';
 import naive from 'naive-ui';
-import App from "./App.vue";
-import router from "./router";
+import App from './App.vue';
+import router from './router';
 import SvgIcon from './components/SvgIcon/SvgIcon.vue';
 import './assets/iconfont/iconfont.js';
+import './styles/dark/css-vars.css';
 
 const pinia = createPinia();
 const app = createApp(App);
@@ -20,4 +21,4 @@ app.config.errorHandler = (err, _instance, info) => {
   console.error('错误信息:', info);
 };
 
-app.mount("#app");
+app.mount('#app');

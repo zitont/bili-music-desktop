@@ -1,22 +1,16 @@
 :root {
-  --bPageBgColor: #f5f5f5;
-  --bTextColor: #000;
-  --bBgColor: #ffffff;
-  --bBorderColor: #dcdfe6;
-  --bDialogBgColor: #ffffff;
-  --roleHeaderBgColor: #f1f1f1;
-  --selectRowBgColor: #e8f4ff;
-}
-
-html.dark {
-  /* 颜色系统 */
-  --bPageBgColor: #08080a;
-  --bTextColor: #e8e6e0;
-  --bBgColor: #16161c;
-  --bBorderColor: rgba(255, 255, 255, 0.06);
-  --bDialogBgColor: #1c1c24;
-  --roleHeaderBgColor: #101014;
-  --selectRowBgColor: rgba(201, 165, 92, 0.1);
+  /* 亮色主题 — 默认 */
+  --b-page-bg: #f8f8f6;
+  --b-card-bg: #ffffff;
+  --b-surface-1: #f0f0ee;
+  --b-surface-2: #e8e8e6;
+  --b-surface-3: #e0e0de;
+  --b-text-primary: #1c1c1a;
+  --b-text-secondary: #6b6b6b;
+  --b-text-tertiary: #a0a0a0;
+  --b-border: rgba(0, 0, 0, 0.06);
+  --b-border-light: rgba(0, 0, 0, 0.04);
+  --b-hover: rgba(201, 165, 92, 0.08);
 
   /* 主强调色：琥珀金 */
   --color-primary: #c9a55c;
@@ -28,20 +22,57 @@ html.dark {
   --color-secondary: #8b5cf6;
   --color-danger: #ef4444;
   --color-success: #22c55e;
+  --text-inverse: #08080a;
+
+  /* 渐变 */
+  --gradient-primary: linear-gradient(135deg, #c9a55c, #a8873e);
+  --gradient-primary-hover: linear-gradient(135deg, #dbb978, #c9a55c);
+  --gradient-primary-active: linear-gradient(135deg, #a8873e, #8b6d2f);
+  --gradient-primary-subtle: linear-gradient(135deg, rgba(201, 165, 92, 0.1), rgba(201, 165, 92, 0.05));
+
+  /* 边框交互色 */
+  --border-hover: rgba(201, 165, 92, 0.15);
+  --border-active: rgba(201, 165, 92, 0.2);
+
+  /* 悬停背景 */
+  --b-hover-neutral: rgba(0, 0, 0, 0.04);
+  --b-hover-strong: rgba(201, 165, 92, 0.12);
+  --b-danger: rgba(239, 68, 68, 0.08);
+
+  /* 阴影 */
+  --shadow-top: 0 -4px 16px rgba(0, 0, 0, 0.08);
+
+  /* 焦点环 */
+  --focus-ring: rgba(201, 165, 92, 0.5);
+  --focus-ring-bg: rgba(201, 165, 92, 0.1);
+
+  /* 滚动条 */
+  --scrollbar-thumb: rgba(0, 0, 0, 0.12);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.2);
+
+  /* 动态主题色（由封面提取，运行时可覆盖） */
+  --theme-dominant: #e8dcc8;
+  --theme-muted: #f0e8d8;
+  --theme-dark: #f5f0e8;
 
   /* 表面色层级 */
-  --surface-0: #08080a;
-  --surface-1: #101014;
-  --surface-2: #16161c;
-  --surface-3: #1c1c24;
+  --surface-0: #f8f8f6;
+  --surface-1: #ffffff;
+  --surface-2: #f0f0ee;
+  --surface-3: #e8e8e6;
 
   /* 文字色 */
-  --text-primary: #e8e6e0;
-  --text-secondary: #8a8890;
-  --text-tertiary: #4a4854;
+  --text-primary: #1c1c1a;
+  --text-secondary: #6b6b6b;
+  --text-tertiary: #a0a0a0;
+
+  /* 背景色快捷 */
+  --app-bg: var(--surface-0);
 
   /* 字体系统 */
-  --font-family: 'Inter', 'SF Pro Display', -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-family:
+    'Inter', 'SF Pro Display', -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei',
+    sans-serif;
   --font-display: 700 28px/1.2 var(--font-family);
   --font-heading: 600 20px/1.3 var(--font-family);
   --font-subheading: 600 15px/1.4 var(--font-family);
@@ -56,16 +87,17 @@ html.dark {
   --space-4: 16px;
   --space-5: 20px;
   --space-6: 24px;
+  --space-7: 28px;
   --space-8: 32px;
   --space-10: 40px;
   --space-12: 48px;
 
   /* 阴影系统 */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.1);
   --shadow-glow: 0 0 20px rgba(201, 165, 92, 0.15);
-  --shadow-inner: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  --shadow-inner: inset 0 1px 0 rgba(255, 255, 255, 0.8);
 
   /* 圆角系统 */
   --radius-sm: 4px;
@@ -80,4 +112,131 @@ html.dark {
   --duration-slow: 350ms;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ========== 非玻璃模式 — 布局背景使用实色 ========== */
+
+html:not(.glass) {
+  --sider-bg: var(--surface-1);
+  --sider-blur: 0px;
+  --content-bg: var(--surface-0);
+  --content-blur: 0px;
+  --footer-bg: var(--surface-2);
+  --footer-blur: 0px;
+}
+
+/* ========== 玻璃模式 — 布局背景使用半透明 + 模糊 ========== */
+
+html.glass {
+  --surface-0: transparent;
+  --sider-bg: rgba(240, 240, 238, 0.75);
+  --sider-blur: 12px;
+  --content-bg: rgba(248, 248, 246, 0.4);
+  --content-blur: 4px;
+  --footer-bg: rgba(240, 240, 238, 0.8);
+  --footer-blur: 16px;
+  /* 磨砂玻璃模式下增加文本深度，确保半透明背景下可读性 */
+  --text-primary: #141412;
+  --text-secondary: #505050;
+  --text-tertiary: #707070;
+  --b-text-primary: #141412;
+  --b-text-secondary: #505050;
+  --b-text-tertiary: #707070;
+}
+
+/* ========== 暗色主题基础覆盖 ========== */
+
+html.dark {
+  --b-page-bg: #08080a;
+  --b-card-bg: #16161c;
+  --b-surface-1: #101014;
+  --b-surface-2: #16161c;
+  --b-surface-3: #1c1c24;
+  --b-text-primary: #e8e6e0;
+  --b-text-secondary: #8a8890;
+  --b-text-tertiary: #4a4854;
+  --b-border: rgba(255, 255, 255, 0.15);
+  --b-border-light: rgba(255, 255, 255, 0.08);
+  --b-hover: rgba(201, 165, 92, 0.06);
+  --color-primary-glow: rgba(201, 165, 92, 0.15);
+  --text-inverse: #ffffff;
+
+  --gradient-primary: linear-gradient(135deg, #c9a55c, #a8873e);
+  --gradient-primary-hover: linear-gradient(135deg, #dbb978, #c9a55c);
+  --gradient-primary-active: linear-gradient(135deg, #a8873e, #8b6d2f);
+  --gradient-primary-subtle: linear-gradient(135deg, rgba(201, 165, 92, 0.1), rgba(201, 165, 92, 0.05));
+
+  --border-hover: rgba(201, 165, 92, 0.15);
+  --border-active: rgba(201, 165, 92, 0.2);
+
+  --b-hover-neutral: rgba(128, 128, 128, 0.08);
+  --b-hover-strong: rgba(201, 165, 92, 0.12);
+  --b-danger: rgba(239, 68, 68, 0.1);
+
+  --shadow-top: 0 -4px 16px rgba(0, 0, 0, 0.3);
+
+  --focus-ring: rgba(201, 165, 92, 0.5);
+  --focus-ring-bg: rgba(201, 165, 92, 0.12);
+
+  --scrollbar-thumb: rgba(255, 255, 255, 0.12);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.2);
+
+  --surface-0: #08080a;
+  --surface-1: #101014;
+  --surface-2: #16161c;
+  --surface-3: #1c1c24;
+
+  --text-primary: #e8e6e0;
+  --text-secondary: #8a8890;
+  --text-tertiary: #4a4854;
+
+  --app-bg: var(--surface-0);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 20px rgba(201, 165, 92, 0.15);
+  --shadow-inner: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+/* ========== 暗色 + 非玻璃 — 覆盖布局背景 ========== */
+
+html.dark:not(.glass) {
+  --sider-bg: var(--surface-1);
+  --sider-blur: 0px;
+  --content-bg: var(--surface-0);
+  --content-blur: 0px;
+  --footer-bg: var(--surface-2);
+  --footer-blur: 0px;
+}
+
+/* ========== 暗色 + 玻璃 — 覆盖布局背景 ========== */
+
+html.dark.glass {
+  --surface-0: transparent;
+  --sider-bg: rgba(16, 16, 20, 0.55);
+  --sider-blur: 12px;
+  --content-bg: rgba(8, 8, 10, 0.3);
+  --content-blur: 4px;
+  --footer-bg: rgba(22, 22, 28, 0.6);
+  --footer-blur: 16px;
+  /* 磨砂玻璃模式下增加文本亮度，确保半透明背景下可读性 */
+  --text-primary: #f0eeea;
+  --text-secondary: #a09e98;
+  --text-tertiary: #6a6870;
+  --b-text-primary: #f0eeea;
+  --b-text-secondary: #a09e98;
+  --b-text-tertiary: #6a6870;
+}
+
+/* ========== 玻璃模式：主内容区内部件背景变半透明，透出wrapper毛玻璃 ========== */
+
+html.glass .app-main-wrapper {
+  --surface-1: rgba(255, 255, 255, 0.55);
+  --surface-2: rgba(240, 240, 238, 0.6);
+}
+
+html.dark.glass .app-main-wrapper {
+  --surface-1: rgba(16, 16, 20, 0.45);
+  --surface-2: rgba(22, 22, 28, 0.5);
 }

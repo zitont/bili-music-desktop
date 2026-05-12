@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, globalShortcut, Tray, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, globalShortcut, Tray, Menu, nativeImage, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -11,6 +11,7 @@ let mainWindow = null;
 let biliWindow = null;
 let biliWindow2 = null;
 let tray = null;
+let audioPollInterval = null;
 
 // 加载超时时间（毫秒）
 const WINDOW_LOAD_TIMEOUT = 30000;
@@ -489,6 +490,9 @@ function registerShortcuts() {
 async function cleanup() {
   console.log('Starting cleanup...');
 
+  // 停止音频轮询
+  stopAudioPolling();
+
   // 注销全局快捷键
   globalShortcut.unregisterAll();
 
@@ -517,6 +521,47 @@ async function cleanup() {
   }
 
   console.log('Cleanup completed');
+}
+
+/**
+ * 音频数据分析：从 biliWindow 轮询音频频域数据并推送到渲染进程
+ */
+function startAudioPolling() {
+  stopAudioPolling();
+  audioPollInterval = setInterval(async () => {
+    if (!biliWindow || biliWindow.isDestroyed()) {
+      stopAudioPolling();
+      return;
+    }
+    try {
+      const data = await safeExecuteJavaScript(biliWindow, `
+        (() => {
+          if (!window.__audioAnalyser || !window.__audioBuffer) return null;
+          window.__audioAnalyser.getByteFrequencyData(window.__audioBuffer);
+          const arr = Array.from(window.__audioBuffer);
+          let sum = 0, peak = 0;
+          for (let i = 0; i < arr.length; i++) {
+            sum += arr[i];
+            if (arr[i] > peak) peak = arr[i];
+          }
+          const avg = sum / arr.length;
+          return { avg: avg / 255, peak: peak / 255 };
+        })()
+      `);
+      if (data && mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('audio:data', data);
+      }
+    } catch (e) {
+      // 静默失败 — 音频分析暂不可用
+    }
+  }, 80);
+}
+
+function stopAudioPolling() {
+  if (audioPollInterval) {
+    clearInterval(audioPollInterval);
+    audioPollInterval = null;
+  }
 }
 
 // ==================== IPC 处理器 ====================
@@ -580,6 +625,8 @@ ipcMain.handle('player:play', (event, MusicBvid) => {
     biliWindow.destroy();
   }
 
+  stopAudioPolling();
+
   biliWindow = createBiliWindow(MusicBvid);
 
   if (biliWindow) {
@@ -589,10 +636,27 @@ ipcMain.handle('player:play', (event, MusicBvid) => {
           const player = document.querySelector('video');
           if (player) {
             setTimeout(() => player.play(), 1000);
+            setTimeout(() => {
+              try {
+                if (!window.__audioAnalyser) {
+                  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                  const analyser = audioCtx.createAnalyser();
+                  analyser.fftSize = 256;
+                  const source = audioCtx.createMediaElementSource(player);
+                  source.connect(analyser);
+                  analyser.connect(audioCtx.destination);
+                  audioCtx.resume();
+                  window.__audioAnalyser = analyser;
+                  window.__audioBuffer = new Uint8Array(analyser.frequencyBinCount);
+                }
+              } catch(e) { /* 音频分析初始化失败 */ }
+            }, 2000);
           }
         })()
       `;
       safeExecuteJavaScript(biliWindow, code).catch(console.error);
+
+      setTimeout(() => startAudioPolling(), 3000);
     });
   }
 
@@ -642,15 +706,29 @@ ipcMain.handle('system:getInfo', () => {
   }
 });
 
+// 外部链接
+ipcMain.handle('shell:openExternal', (event, url) => {
+  if (typeof url === 'string' && url.startsWith('https://')) {
+    shell.openExternal(url);
+  }
+});
+
+// 主题切换（亮/暗）
+ipcMain.handle('theme:set', (event, isDark) => {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.setBackgroundColor(isDark ? '#0a0a0a' : '#ffffff');
+});
+
 // 数据库操作
 ipcMain.handle('db:getPlaylists', async () => {
   try {
     const sql = `
-      SELECT vl.*, COUNT(vlv.video_bvid) AS video_count
+      SELECT vl.videolists_id, vl.videolist_name, vl.description, vl.sort_order,
+             COUNT(vlv.video_bvid) AS video_count
       FROM video_lists vl
       LEFT JOIN videolist_videos vlv ON vl.videolists_id = vlv.videolist_id
       GROUP BY vl.videolists_id
-      ORDER BY vl.videolists_id
+      ORDER BY vl.sort_order, vl.videolists_id
     `;
     return await dbOperations.executeQuery(sql, []);
   } catch (error) {
@@ -689,10 +767,10 @@ ipcMain.handle('db:addVideo', async (event, videoInfo) => {
 });
 
 // 歌单操作
-ipcMain.handle('db:createPlaylist', async (event, name) => {
-  const sql = 'INSERT INTO video_lists (videolist_name) VALUES (?)';
+ipcMain.handle('db:createPlaylist', async (event, { name, description = '' }) => {
+  const sql = 'INSERT INTO video_lists (videolist_name, description) VALUES (?, ?)';
   try {
-    await dbOperations.insert(sql, [name]);
+    await dbOperations.insert(sql, [name, description]);
     return true;
   } catch (error) {
     console.error('Error creating playlist:', error);
@@ -700,10 +778,10 @@ ipcMain.handle('db:createPlaylist', async (event, name) => {
   }
 });
 
-ipcMain.handle('db:updatePlaylist', async (event, { id, name }) => {
-  const sql = 'UPDATE video_lists SET videolist_name = ? WHERE videolists_id = ?';
+ipcMain.handle('db:updatePlaylist', async (event, { id, name, description }) => {
+  const sql = 'UPDATE video_lists SET videolist_name = ?, description = ? WHERE videolists_id = ?';
   try {
-    await dbOperations.insert(sql, [name, id]);
+    await dbOperations.insert(sql, [name, description || '', id]);
     return true;
   } catch (error) {
     console.error('Error updating playlist:', error);
@@ -712,13 +790,18 @@ ipcMain.handle('db:updatePlaylist', async (event, { id, name }) => {
 });
 
 ipcMain.handle('db:deletePlaylist', async (event, id) => {
-  const sql = 'DELETE FROM video_lists WHERE videolists_id = ?';
+  if (id === 1) {
+    return { success: false, error: '默认歌单不能删除' };
+  }
   try {
-    await dbOperations.insert(sql, [id]);
-    return true;
+    dbOperations.runTransaction(() => {
+      dbOperations.insert('DELETE FROM videolist_videos WHERE videolist_id = ?', [id]);
+      dbOperations.insert('DELETE FROM video_lists WHERE videolists_id = ?', [id]);
+    });
+    return { success: true };
   } catch (error) {
     console.error('Error deleting playlist:', error);
-    return false;
+    return { success: false, error: error.message };
   }
 });
 
@@ -742,6 +825,19 @@ ipcMain.handle('db:deleteVideo', async (event, bvid) => {
   } catch (error) {
     console.error('Error deleting video:', error);
     return false;
+  }
+});
+
+ipcMain.handle('db:moveVideo', async (event, { bvid, fromPlaylistId, toPlaylistId }) => {
+  try {
+    dbOperations.runTransaction(() => {
+      dbOperations.insert('DELETE FROM videolist_videos WHERE videolist_id = ? AND video_bvid = ?', [fromPlaylistId, bvid]);
+      dbOperations.insert('INSERT OR REPLACE INTO videolist_videos (videolist_id, video_bvid) VALUES (?, ?)', [toPlaylistId, bvid]);
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('Error moving video:', error);
+    return { success: false, error: error.message };
   }
 });
 

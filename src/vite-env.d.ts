@@ -30,21 +30,36 @@ interface ElectronAPI {
   InsertVideoinfo: (videoinfo: any) => Promise<{ success: boolean; error?: string }>;
 
   // 歌单操作
-  createPlaylist: (name: string) => Promise<boolean>;
-  updatePlaylist: (id: number, name: string) => Promise<boolean>;
-  deletePlaylist: (id: number) => Promise<boolean>;
+  createPlaylist: (name: string, description?: string) => Promise<boolean>;
+  updatePlaylist: (id: number, name: string, description?: string) => Promise<boolean>;
+  deletePlaylist: (id: number) => Promise<{ success: boolean; error?: string }>;
 
   // 视频操作
-  updateVideo: (bvid: string, title: string, startTime: number, endTime: number) => Promise<boolean>;
+  updateVideo: (
+    bvid: string,
+    title: string,
+    startTime: number,
+    endTime: number
+  ) => Promise<boolean>;
   deleteVideo: (bvid: string) => Promise<boolean>;
+  moveVideo: (bvid: string, fromPlaylistId: number, toPlaylistId: number) => Promise<boolean>;
 
   // 系统信息
   getSystemInfo: () => Promise<SystemInfo | null>;
+
+  // 外部链接
+  openExternal: (url: string) => Promise<void>;
+
+  // 主题设置
+  themeSet: (isDark: boolean) => Promise<void>;
 
   // 主进程事件监听
   onTogglePlay: (callback: () => void) => void;
   onPlayPrevious: (callback: () => void) => void;
   onPlayNext: (callback: () => void) => void;
+
+  // 音频分析数据（用于背景波澜动画）
+  onAudioData: (callback: (data: { avg: number; peak: number }) => void) => () => void;
 }
 
 interface WindowsApi {

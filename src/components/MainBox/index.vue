@@ -3,7 +3,8 @@
     <!-- 编辑歌曲抽屉 -->
     <EditSong
       v-model:show="showEditSong"
-      :song="editingSong"
+      :song="editingSong as any"
+      :current-playlist-id="menus"
       @save="handleSaveSong"
       @delete="handleDeleteSong"
     />
@@ -11,8 +12,21 @@
     <!-- 头部 -->
     <div class="header">
       <div class="header-left">
-        <span class="header-title">默认收藏夹</span>
-        <span class="header-count">{{ items.length }} 首歌曲</span>
+        <span class="header-title">{{ currentPlaylistName }}</span>
+        <span class="header-count">{{ filteredItems.length }} 首歌曲</span>
+      </div>
+      <div class="header-right">
+        <n-input
+          v-model:value="searchQuery"
+          placeholder="搜索视频..."
+          clearable
+          size="small"
+          class="search-input"
+        >
+          <template #prefix>
+            <svg-icon icon-name="icon-sousuo" class="search-icon" style="font-size: 14px"></svg-icon>
+          </template>
+        </n-input>
       </div>
     </div>
 
@@ -24,20 +38,19 @@
     <!-- 表头 -->
     <div class="table-header">
       <div class="col-title">标题</div>
-      <div class="col-up">UP主</div>
       <div class="col-duration">时长</div>
       <div class="col-action"></div>
     </div>
 
     <!-- 视频列表 -->
     <n-scrollbar class="list-scroll">
-      <div v-if="items.length === 0 && !loadError" class="empty-state">
-        <svg-icon iconName="icon-shoucangjia" color="#4a4854" class="empty-icon"></svg-icon>
-        <span class="empty-text">暂无视频</span>
+      <div v-if="filteredItems.length === 0 && !loadError" class="empty-state">
+        <svg-icon icon-name="icon-empty" class="empty-icon"></svg-icon>
+        <span class="empty-text">{{ searchQuery ? '未找到匹配的视频' : '暂无视频' }}</span>
       </div>
 
       <div
-        v-for="(item, index) in items"
+        v-for="(item, index) in filteredItems"
         :key="item.video_bvid"
         class="list-item"
         :class="{ active: video_bvid === item.video_bvid }"
@@ -59,16 +72,17 @@
             <span class="video-up">{{ item.up_name }}</span>
           </div>
         </div>
-        <div class="col-up">
-          <span class="up-name">{{ item.up_name }}</span>
-        </div>
         <div class="col-duration">
           <span>{{ formatTime(item.video_duration) }}</span>
         </div>
         <div class="col-action">
-          <n-dropdown :options="getActionOptions(item)" @select="(key) => handleAction(key, item)" trigger="click">
-            <n-button text size="small" class="action-btn">
-              <svg-icon iconName="icon-gengduoxiao" color="#8a8890"></svg-icon>
+          <n-dropdown
+            :options="getActionOptions(item)"
+            trigger="click"
+            @select="(key: string) => handleAction(key, item)"
+          >
+            <n-button text size="small" class="action-btn" @click.stop>
+              <svg-icon icon-name="icon-gengduoxiao"></svg-icon>
             </n-button>
           </n-dropdown>
         </div>
@@ -78,38 +92,41 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { setVideoBvid, VideoGetListsID } from '../../utils/electronApi.js';
 import { formatTime } from '../../utils/functions.js';
 import { useMenusStore, usePlayStore, usePlayList } from '../../store';
 import { storeToRefs } from 'pinia';
 import { useMessage } from 'naive-ui';
+import type { DropdownOption } from 'naive-ui';
 import EditSong from '../EditSong/index.vue';
-
-interface VideoItem {
-  video_bvid: string;
-  video_title: string;
-  video_img_url: string;
-  video_duration: number;
-  video_startTime?: number;
-  video_endtime?: number;
-  up_name: string;
-  playlist?: string;
-}
+import type { VideoItem } from '../../types/video';
 
 const message = useMessage();
 const store = useMenusStore();
 const play = usePlayStore();
 const playList = usePlayList();
 
-const { menus } = storeToRefs(store);
+const { menus, currentPlaylistName } = storeToRefs(store);
 const { duration, videotitle, videoimg_url, video_bvid, playback_status } = storeToRefs(play);
-const { listser, lists, listnobor } = storeToRefs(playList);
+const { needsRefresh, lists, currentIndex } = storeToRefs(playList);
 
 const items = ref<VideoItem[]>([]);
 const showEditSong = ref(false);
 const editingSong = ref<VideoItem | null>(null);
 const loadError = ref('');
+const searchQuery = ref('');
+
+const filteredItems = computed(() => {
+  if (!searchQuery.value.trim()) {
+    return items.value;
+  }
+  const query = searchQuery.value.trim().toLowerCase();
+  return items.value.filter(item =>
+    item.video_title.toLowerCase().includes(query) ||
+    item.up_name.toLowerCase().includes(query)
+  );
+});
 
 function handoffvideo(item: VideoItem, index: number) {
   setVideoBvid(item.video_bvid);
@@ -119,10 +136,10 @@ function handoffvideo(item: VideoItem, index: number) {
   videotitle.value = item.video_title;
   videoimg_url.value = item.video_img_url;
   video_bvid.value = item.video_bvid;
-  listnobor.value = index;
+  currentIndex.value = index;
 }
 
-function getActionOptions(item: VideoItem) {
+function getActionOptions(_item: VideoItem): DropdownOption[] {
   return [
     { label: '编辑', key: 'edit' },
     { label: '删除', key: 'delete' },
@@ -149,7 +166,7 @@ async function deleteSong(item: VideoItem) {
   try {
     await window.electronAPI.deleteVideo(item.video_bvid);
     message.success('删除成功');
-    listser.value = true;
+    needsRefresh.value = true;
   } catch (error) {
     console.error('删除歌曲失败:', error);
     message.error('删除失败');
@@ -159,8 +176,11 @@ async function deleteSong(item: VideoItem) {
 async function handleSaveSong(data: any) {
   try {
     await window.electronAPI.updateVideo(data.bvid, data.title, data.startTime, data.endTime);
+    if (data.playlistId && data.playlistId !== menus.value) {
+      await window.electronAPI.moveVideo(data.bvid, menus.value, data.playlistId);
+    }
     message.success('保存成功');
-    listser.value = true;
+    needsRefresh.value = true;
   } catch (error) {
     console.error('保存歌曲失败:', error);
     message.error('保存失败');
@@ -174,16 +194,18 @@ function handleDeleteSong(bvid: string) {
 if (!window.electronAPI) {
   loadError.value = 'Electron API 未加载，请通过 Electron 启动应用';
 } else {
-  VideoGetListsID(menus.value).then((listsIDs: VideoItem[]) => {
-    items.value = listsIDs || [];
-    lists.value = listsIDs || [];
-    if (!listsIDs || listsIDs.length === 0) {
-      loadError.value = '数据库查询返回空结果';
-    }
-  }).catch((error: Error) => {
-    console.error('获取视频列表失败:', error);
-    loadError.value = '获取视频列表失败: ' + (error.message || '未知错误');
-  });
+  VideoGetListsID(menus.value)
+    .then((listsIDs: VideoItem[]) => {
+      items.value = listsIDs || [];
+      lists.value = listsIDs || [];
+      if (!listsIDs || listsIDs.length === 0) {
+        loadError.value = '数据库查询返回空结果';
+      }
+    })
+    .catch((error: Error) => {
+      console.error('获取视频列表失败:', error);
+      loadError.value = '获取视频列表失败: ' + (error.message || '未知错误');
+    });
 }
 
 watch(
@@ -196,11 +218,11 @@ watch(
 );
 
 watch(
-  () => listser.value,
+  () => needsRefresh.value,
   () => {
     VideoGetListsID(menus.value).then((refd: VideoItem[]) => {
       items.value = refd;
-      listser.value = false;
+      needsRefresh.value = false;
     });
   }
 );
@@ -242,7 +264,7 @@ watch(
 .header-title {
   font-size: 28px;
   font-weight: 700;
-  color: #e8e6e0;
+  color: var(--text-primary);
   letter-spacing: -0.02em;
   line-height: 1.2;
 }
@@ -250,22 +272,38 @@ watch(
 .header-count {
   font-size: 11px;
   font-weight: 500;
-  color: #4a4854;
+  color: var(--text-tertiary);
   letter-spacing: 0.02em;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.search-input {
+  width: 200px;
+}
+
+.search-icon {
+  color: var(--text-tertiary);
 }
 
 .table-header {
   display: flex;
   align-items: center;
   padding: 8px 24px;
-  background: rgba(255, 255, 255, 0.02);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  background: var(--surface-1);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--b-border-light);
 }
 
 .table-header div {
   font-size: 10px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -278,19 +316,13 @@ watch(
   gap: 10px;
 }
 
-.col-up {
-  width: 120px;
-  padding: 0 8px;
-  flex-shrink: 0;
-}
-
 .col-duration {
   width: 80px;
   text-align: right;
   padding-right: 8px;
   flex-shrink: 0;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
 }
 
@@ -310,7 +342,9 @@ watch(
   padding: 10px 24px;
   min-height: 56px;
   cursor: pointer;
-  transition: background var(--duration-fast) var(--ease-in-out), border-left-color var(--duration-fast) var(--ease-in-out);
+  transition:
+    background var(--duration-fast) var(--ease-in-out),
+    border-left-color var(--duration-fast) var(--ease-in-out);
   border-left: 3px solid transparent;
   animation: itemSlideIn 0.25s var(--ease-out) both;
 }
@@ -327,26 +361,31 @@ watch(
 }
 
 .list-item:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--b-hover);
 }
 
 .list-item.active {
-  background: rgba(201, 165, 92, 0.06);
-  border-left-color: #c9a55c;
+  background: var(--b-hover);
+  border-left-color: var(--color-primary);
   animation: activeItemPulse 3s ease-in-out infinite;
 }
 
 @keyframes activeItemPulse {
-  0%, 100% { background: rgba(201, 165, 92, 0.04); }
-  50% { background: rgba(201, 165, 92, 0.08); }
+  0%,
+  100% {
+    background: var(--b-hover);
+  }
+  50% {
+    background: var(--b-hover-strong);
+  }
 }
 
 .list-item.active .video-title {
-  color: #c9a55c;
+  color: var(--color-primary);
 }
 
 .list-item.active .cover-img {
-  box-shadow: 0 0 12px rgba(201, 165, 92, 0.2);
+  box-shadow: 0 0 12px var(--color-primary-glow);
 }
 
 .cover-img {
@@ -366,7 +405,7 @@ watch(
 .video-title {
   font-size: 13px;
   font-weight: 500;
-  color: #e8e6e0;
+  color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -376,18 +415,14 @@ watch(
 
 .video-up {
   font-size: 11px;
-  color: #4a4854;
+  color: var(--text-tertiary);
   line-height: 1.3;
-}
-
-.up-name {
-  font-size: 12px;
-  color: #8a8890;
 }
 
 .action-btn {
   opacity: 0;
   transition: all var(--duration-fast) var(--ease-in-out);
+  color: var(--text-secondary);
 }
 
 .list-item:hover .action-btn {
@@ -410,25 +445,31 @@ watch(
 .empty-icon {
   font-size: 48px;
   animation: pulse 2s ease-in-out infinite;
+  color: var(--text-tertiary);
 }
 
 .empty-text {
   font-size: 13px;
-  color: #4a4854;
+  color: var(--text-tertiary);
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 0.7; }
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.7;
+  }
 }
 
 .load-error {
   padding: 12px 24px;
-  background: rgba(239, 68, 68, 0.1);
-  border-left: 3px solid #ef4444;
+  background: var(--b-danger);
+  border-left: 3px solid var(--color-danger);
   margin: 0 24px;
   border-radius: 0 6px 6px 0;
   font-size: 13px;
-  color: #fca5a5;
+  color: var(--color-danger);
 }
 </style>

@@ -50,7 +50,7 @@
     "electron:start": "nodemon --exec electron . --watch ./ --ext .js,.html,.css,.vue",
     "electron:pack": "electron-builder --dir",
     "electron:dist": "electron-builder --win --x64",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx --fix",
+    "lint": "eslint . --fix",
     "format": "prettier --write src/",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -69,6 +69,7 @@
   "devDependencies": {
     "@electron-forge/cli": "^7.4.0",
     "@electron-forge/publisher-github": "^7.4.0",
+    "@eslint/js": "^10.0.1",
     "@types/node": "^20.11.24",
     "@vitejs/plugin-vue": "^5.0.4",
     "@vue/eslint-config-typescript": "^14.7.0",
@@ -80,6 +81,7 @@
     "eslint": "^10.3.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-vue": "^10.9.1",
+    "globals": "^17.6.0",
     "jsdom": "^29.1.1",
     "nodemon": "^3.1.0",
     "prettier": "^3.8.3",

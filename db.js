@@ -25,10 +25,31 @@ function ensureTables() {
     console.warn('数据库缺少表:', missingTables, '，重新创建');
     createTables();
   } else {
+    // 迁移：为 video_lists 表添加新字段
+    migrateVideoListsTable();
     const defaultPlaylist = db.prepare('SELECT * FROM video_lists WHERE videolists_id = 1').get();
     if (!defaultPlaylist) {
       db.prepare('INSERT INTO video_lists (videolists_id, videolist_name) VALUES (1, ?)').run('默认收藏夹');
     }
+  }
+}
+
+/**
+ * 迁移 video_lists 表，添加 description 和 sort_order 字段
+ */
+function migrateVideoListsTable() {
+  try {
+    const columns = db.prepare("PRAGMA table_info(video_lists)").all().map(c => c.name);
+    if (!columns.includes('description')) {
+      db.exec("ALTER TABLE video_lists ADD COLUMN description TEXT DEFAULT ''");
+      console.log('已为 video_lists 表添加 description 字段');
+    }
+    if (!columns.includes('sort_order')) {
+      db.exec("ALTER TABLE video_lists ADD COLUMN sort_order INTEGER DEFAULT 0");
+      console.log('已为 video_lists 表添加 sort_order 字段');
+    }
+  } catch (error) {
+    console.error('迁移 video_lists 表失败:', error);
   }
 }
 
@@ -52,7 +73,9 @@ function createTables() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS video_lists (
       videolists_id INTEGER PRIMARY KEY AUTOINCREMENT,
-      videolist_name TEXT NOT NULL
+      videolist_name TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      sort_order INTEGER DEFAULT 0
     )
   `);
 
