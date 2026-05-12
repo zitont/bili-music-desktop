@@ -22,12 +22,12 @@ interface ElectronAPI {
   VideoCurrentTime: (time?: number) => Promise<number | null>;
   VideoDuration: () => Promise<number | null>;
   VideoSetVolume: (volume: number) => Promise<number | null>;
-  VideoGetinfo: (bvid: string) => Promise<any>;
+  VideoGetinfo: (bvid: string) => Promise<unknown>;
 
   // 数据库操作
-  VideoGetLists: () => Promise<any[]>;
-  VideoGetListsID: (listsid: number) => Promise<any[]>;
-  InsertVideoinfo: (videoinfo: any) => Promise<{ success: boolean; error?: string }>;
+  VideoGetLists: () => Promise<unknown[]>;
+  VideoGetListsID: (listsid: number) => Promise<unknown[]>;
+  InsertVideoinfo: (videoinfo: unknown) => Promise<{ success: boolean; error?: string }>;
 
   // 歌单操作
   createPlaylist: (name: string, description?: string) => Promise<boolean>;

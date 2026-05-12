@@ -551,7 +551,7 @@ function startAudioPolling() {
       if (data && mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('audio:data', data);
       }
-    } catch (e) {
+    } catch {
       // 静默失败 — 音频分析暂不可用
     }
   }, 80);

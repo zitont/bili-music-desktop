@@ -1,4 +1,4 @@
-const { BrowserWindow} = require('electron');
+const { BrowserWindow, globalShortcut } = require('electron');
 // 创建Bilibili窗口
 function createBiliWindow(bvid) {
   if (!bvid) {

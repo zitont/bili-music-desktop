@@ -20,7 +20,7 @@ function getCustomDataDir() {
         return dir;
       }
     }
-  } catch (e) {
+  } catch {
     // 配置文件读取失败，使用默认路径
   }
   return null;

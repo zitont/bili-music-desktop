@@ -5,7 +5,18 @@ import prettier from 'eslint-config-prettier';
 import globals from 'globals';
 
 export default [
-  { ignores: ['dist/', 'build/', 'node_modules/', 'data/'] },
+  {
+    ignores: [
+      'dist/',
+      'build/',
+      'node_modules/',
+      'data/',
+      'src/assets/iconfont/iconfont.js',
+      'src/components/AudioBgRipple/',
+      'src/components/CanvasSmoke/',
+      'scripts/copy-deps.js',
+    ],
+  },
 
   js.configs.recommended,
   ...pluginVue.configs['flat/recommended'],
@@ -27,6 +38,11 @@ export default [
       'vue/multi-word-component-names': 'off',
       'no-console': 'warn',
       'no-debugger': 'warn',
+      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
     },
   },
 
