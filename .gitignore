@@ -26,6 +26,14 @@ dist-electron
 data/
 data-dir.cfg
 
+# 测试覆盖率
+coverage/
+
+# 工作区临时文件
+findings.md
+progress.md
+task_plan.md
+
 # 构建产物
 build/
 
