@@ -106,7 +106,7 @@ const animOptions = [
 async function selectDataDir() {
   try {
     const result = await window.electronAPI.selectDataDirectory();
-    if (result.success) {
+    if (result.success && result.path) {
       dataDir.value = result.path;
       message.success('数据目录已更新，重启后生效');
     }

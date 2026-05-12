@@ -18,15 +18,15 @@ interface ElectronAPI {
 
   // 视频播放控制
   VideoPlaySet: (action: number) => Promise<boolean>;
-  VideoSetBvid: (bvid: string) => Promise<boolean>;
+  VideoSetBvid: (bvid: string, startTime?: number, volume?: number | null) => Promise<boolean>;
   VideoCurrentTime: (time?: number) => Promise<number | null>;
   VideoDuration: () => Promise<number | null>;
   VideoSetVolume: (volume: number) => Promise<number | null>;
   VideoGetinfo: (bvid: string) => Promise<unknown>;
 
   // 数据库操作
-  VideoGetLists: () => Promise<unknown[]>;
-  VideoGetListsID: (listsid: number) => Promise<unknown[]>;
+  VideoGetLists: () => Promise<import('./types/video').PlaylistItem[]>;
+  VideoGetListsID: (listsid: number) => Promise<import('./types/video').VideoItem[]>;
   InsertVideoinfo: (videoinfo: unknown) => Promise<{ success: boolean; error?: string }>;
 
   // 歌单操作
@@ -49,6 +49,10 @@ interface ElectronAPI {
 
   // 外部链接
   openExternal: (url: string) => Promise<void>;
+
+  // 数据目录
+  selectDataDirectory: () => Promise<{ success: boolean; path?: string; error?: string }>;
+  getDataDirectory: () => Promise<{ path: string | null }>;
 
   // 主题设置
   themeSet: (isDark: boolean) => Promise<void>;

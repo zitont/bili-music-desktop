@@ -108,7 +108,7 @@ const play = usePlayStore();
 const playList = usePlayList();
 
 const { menus, currentPlaylistName } = storeToRefs(store);
-const { duration, videotitle, videoimg_url, video_bvid, playback_status } = storeToRefs(play);
+const { duration, videotitle, videoimg_url, video_bvid, playback_status, volume } = storeToRefs(play);
 const { needsRefresh, lists, currentIndex } = storeToRefs(playList);
 
 const items = ref<VideoItem[]>([]);

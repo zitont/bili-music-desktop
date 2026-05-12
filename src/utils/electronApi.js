@@ -1,7 +1,9 @@
 /**
  * 设置视频BVID
  *
- * @param bvid 视频BVID
+ * @param {string} bvid 视频BVID
+ * @param {number} [startTime=0] 开始时间
+ * @param {number|null} [volume=null] 音量
  * @returns 无返回值
  */
 export function setVideoBvid(bvid, startTime = 0, volume = null) {
