@@ -1,42 +1,45 @@
 {
   "name": "bili-music-desktop",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0-beta.1",
   "main": "main.js",
   "author": {
     "name": "zitont",
     "email": "1456492197@qq.com"
   },
   "license": "MIT",
+  "description": "哔哩哔哩音乐桌面客户端",
   "repository": {},
   "build": {
     "appId": "bili.music",
+    "productName": "Bili Music",
     "directories": {
       "output": "build"
     },
-    "buildVersion": "1.0.0",
-    "electronVersion": "19.0.2",
+    "buildVersion": "1.1.0-beta.1",
     "extraResources": {
       "from": "./data/",
       "to": "data"
+    },
+    "win": {
+      "icon": "./imgs/icon.ico",
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "installerIcon": "imgs/icon.ico",
+      "uninstallerIcon": "imgs/icon.ico",
+      "uninstallDisplayName": "Bili Music 哔哩哔哩音乐",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Bili Music",
+      "deleteAppDataOnUninstall": false,
+      "include": "./scripts/installer.nsh"
     }
-  },
-  "win": {
-    "icon": "./imgs/icon.ico",
-    "target": [
-      "nsis"
-    ]
-  },
-  "nsis": {
-    "installerIcon": "imgs/icon.ico",
-    "uninstallerIcon": "imgs/icon.ico",
-    "uninstallDisplayName": "卸载这个软件",
-    "oneClick": false,
-    "allowToChangeInstallationDirectory": true,
-    "allowElevation": true,
-    "createDesktopShortcut": true,
-    "deleteAppDataOnUninstall": true,
-    "include": "./build/script/installer.nsh"
   },
   "scripts": {
     "dev": "vite",
@@ -84,6 +87,7 @@
     "globals": "^17.6.0",
     "jsdom": "^29.1.1",
     "nodemon": "^3.1.0",
+    "png-to-ico": "^3.0.1",
     "prettier": "^3.8.3",
     "sass": "^1.71.1",
     "typescript": "^5.2.2",

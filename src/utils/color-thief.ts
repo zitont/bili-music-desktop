@@ -40,7 +40,7 @@ interface Bucket {
 function dominantFromData(
   data: Uint8ClampedArray,
   width: number,
-  height: number,
+  _height: number,
   offsetX: number,
   offsetY: number,
   regionW: number,

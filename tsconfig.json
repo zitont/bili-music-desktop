@@ -15,6 +15,14 @@
     "noEmit": true,
     "jsx": "preserve",
 
+    /* 路径别名 */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "components/*": ["src/components/*"],
+      "store/*": ["src/store/*"]
+    },
+
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,

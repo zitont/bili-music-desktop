@@ -1,15 +1,42 @@
 const { app } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const Database = require('better-sqlite3');
 
 let db;
 
 /**
+ * 读取安装目录下的自定义数据目录配置
+ * @returns {string|null} 自定义数据目录路径，未配置时返回 null
+ */
+function getCustomDataDir() {
+  try {
+    const configPath = app.isPackaged
+      ? path.join(path.dirname(process.execPath), 'data-dir.cfg')
+      : path.join(__dirname, 'data-dir.cfg');
+    if (fs.existsSync(configPath)) {
+      const dir = fs.readFileSync(configPath, 'utf-8').trim();
+      if (dir && fs.existsSync(dir)) {
+        return dir;
+      }
+    }
+  } catch (e) {
+    // 配置文件读取失败，使用默认路径
+  }
+  return null;
+}
+
+/**
  * 获取数据库文件路径
+ * 优先使用自定义数据目录，其次使用默认路径
  */
 function getDbPath() {
+  const customDir = getCustomDataDir();
+  if (customDir) {
+    return path.join(customDir, 'bilibili.db');
+  }
   if (app.isPackaged) {
-    return path.join(process.resourcesPath, 'data', 'bilibili.db');
+    return path.join(app.getPath('userData'), 'data', 'bilibili.db');
   }
   return path.join(__dirname, 'data', 'bilibili.db');
 }
@@ -58,6 +85,21 @@ function migrateVideoListsTable() {
  */
 function initDatabase() {
   const dbPath = getDbPath();
+  const dbDir = path.dirname(dbPath);
+  // 确保数据库目录存在
+  if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true });
+  }
+  // 如果使用自定义目录但数据库文件不存在，尝试从默认位置复制
+  const customDir = getCustomDataDir();
+  if (customDir && !fs.existsSync(dbPath)) {
+    const defaultPath = app.isPackaged
+      ? path.join(app.getPath('userData'), 'data', 'bilibili.db')
+      : path.join(__dirname, 'data', 'bilibili.db');
+    if (fs.existsSync(defaultPath)) {
+      fs.copyFileSync(defaultPath, dbPath);
+    }
+  }
   console.log('初始化数据库:', dbPath);
   db = new Database(dbPath);
   db.pragma('journal_mode = WAL');
