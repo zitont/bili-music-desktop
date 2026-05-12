@@ -1,13 +1,12 @@
 <template>
   <div class="list-menu">
     <div class="nav-section">
-      <div
-        class="nav-item"
-        :class="{ active: currentRoute === '/' }"
-        @click="mainbox"
-      >
-        <div class="nav-indicator" v-if="currentRoute === '/'"></div>
-        <svg-icon iconName="icon-shoucangjia" :color="currentRoute === '/' ? '#c9a55c' : '#8a8890'"></svg-icon>
+      <div class="nav-item" :class="{ active: currentRoute === '/' }" @click="mainbox">
+        <div v-if="currentRoute === '/'" class="nav-indicator"></div>
+        <svg-icon
+          icon-name="icon-shoucangjia"
+          class="nav-icon"
+        ></svg-icon>
         <span class="nav-label">收藏</span>
       </div>
     </div>
@@ -15,23 +14,21 @@
     <div class="nav-divider"></div>
 
     <div class="playlist-section">
-      <div
-        class="nav-item"
-        :class="{ active: currentRoute === '/increase' }"
-        @click="increase"
-      >
-        <div class="nav-indicator" v-if="currentRoute === '/increase'"></div>
-        <svg-icon iconName="icon-tianjia" :color="currentRoute === '/increase' ? '#c9a55c' : '#8a8890'"></svg-icon>
+      <div class="nav-item" :class="{ active: currentRoute === '/increase' }" @click="increase">
+        <div v-if="currentRoute === '/increase'" class="nav-indicator"></div>
+        <svg-icon
+          icon-name="icon-tianjia"
+          class="nav-icon"
+        ></svg-icon>
         <span class="nav-label">添加</span>
       </div>
 
-      <div
-        class="nav-item"
-        :class="{ active: currentRoute === '/playlist' }"
-        @click="playlist"
-      >
-        <div class="nav-indicator" v-if="currentRoute === '/playlist'"></div>
-        <svg-icon iconName="icon-liebiao" :color="currentRoute === '/playlist' ? '#c9a55c' : '#8a8890'"></svg-icon>
+      <div class="nav-item" :class="{ active: currentRoute === '/playlist' }" @click="playlist">
+        <div v-if="currentRoute === '/playlist'" class="nav-indicator"></div>
+        <svg-icon
+          icon-name="icon-liebiao"
+          class="nav-icon"
+        ></svg-icon>
         <span class="nav-label">歌单</span>
       </div>
     </div>
@@ -39,13 +36,12 @@
     <div class="nav-spacer"></div>
 
     <div class="nav-section bottom">
-      <div
-        class="nav-item"
-        :class="{ active: currentRoute === '/settings' }"
-        @click="settings"
-      >
-        <div class="nav-indicator" v-if="currentRoute === '/settings'"></div>
-        <svg-icon iconName="icon-1shezhi-1" :color="currentRoute === '/settings' ? '#c9a55c' : '#8a8890'"></svg-icon>
+      <div class="nav-item" :class="{ active: currentRoute === '/settings' }" @click="settings">
+        <div v-if="currentRoute === '/settings'" class="nav-indicator"></div>
+        <svg-icon
+          icon-name="icon-1shezhi-1"
+          class="nav-icon"
+        ></svg-icon>
         <span class="nav-label">设置</span>
       </div>
     </div>
@@ -83,7 +79,6 @@ function settings() {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: linear-gradient(180deg, #0e0e12 0%, #0a0a0e 100%);
   padding: 6px 0;
 }
 
@@ -98,7 +93,7 @@ function settings() {
 .nav-section.bottom {
   margin-top: auto;
   padding-top: 6px;
-  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  border-top: 1px solid var(--b-border-light);
 }
 
 .playlist-section {
@@ -112,7 +107,7 @@ function settings() {
 .nav-divider {
   height: 1px;
   margin: 6px 16px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--b-border-light);
 }
 
 .nav-spacer {
@@ -135,11 +130,11 @@ function settings() {
 }
 
 .nav-item:hover {
-  background: rgba(201, 165, 92, 0.06);
+  background: var(--b-hover);
 }
 
-.nav-item:hover :deep(.svg-icon) {
-  color: #e8e6e0;
+.nav-item:hover .nav-icon {
+  color: var(--text-primary);
 }
 
 .nav-item:active {
@@ -147,39 +142,46 @@ function settings() {
 }
 
 .nav-item.active {
-  background: rgba(201, 165, 92, 0.08);
+  background: var(--b-hover);
 }
 
-.nav-item.active :deep(.svg-icon) {
-  color: #c9a55c;
+.nav-item.active .nav-icon {
+  color: var(--color-primary);
 }
 
-.nav-indicator {
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 3px;
-  height: 20px;
-  background: #c9a55c;
-  border-radius: 0 2px 2px 0;
+.nav-icon {
+  color: var(--text-tertiary);
+}
+
+.nav-item.active .nav-icon {
+  color: var(--color-primary);
+}
+
+.nav-item:hover .nav-icon {
+  color: var(--text-primary);
 }
 
 .nav-label {
   font-size: 10px;
   font-weight: 500;
-  color: #4a4854;
+  color: var(--text-tertiary);
+  text-align: center;
   line-height: 1;
   transition: color var(--duration-fast) var(--ease-in-out);
 }
 
 .nav-item:hover .nav-label {
-  color: #8a8890;
+  color: var(--text-primary);
 }
 
 .nav-item.active .nav-label {
-  color: #c9a55c;
+  color: var(--color-primary);
 }
 
-
+.nav-indicator {
+  width: 3px;
+  height: 3px;
+  border-radius: 0 2px 2px 0;
+  background: var(--color-primary);
+}
 </style>

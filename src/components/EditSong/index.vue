@@ -96,6 +96,7 @@ interface Playlist {
 const props = defineProps<{
   show: boolean;
   song: Song | null;
+  currentPlaylistId: number;
 }>();
 
 const emit = defineEmits<{
@@ -127,6 +128,7 @@ watch(
       form.title = newSong.video_title;
       form.startTime = newSong.video_startTime || 0;
       form.endTime = newSong.video_endtime || newSong.video_duration;
+      form.playlistId = props.currentPlaylistId;
     }
   },
   { immediate: true }
@@ -194,9 +196,9 @@ loadPlaylists();
   flex-direction: column;
   gap: 12px;
   padding: 16px;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--surface-1);
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--b-border);
 }
 
 .song-cover {
@@ -221,7 +223,7 @@ loadPlaylists();
 .song-title {
   font-size: 15px;
   font-weight: 600;
-  color: #e8e6e0;
+  color: var(--text-primary);
   margin: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -230,13 +232,13 @@ loadPlaylists();
 
 .song-up {
   font-size: 11px;
-  color: #8a8890;
+  color: var(--text-tertiary);
   margin: 0;
 }
 
 .duration-text {
   font-size: 15px;
-  color: #c9a55c;
+  color: var(--color-primary);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }

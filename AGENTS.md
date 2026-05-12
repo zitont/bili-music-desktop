@@ -38,8 +38,12 @@ npm test                 # Vitest 运行
 | 数据库 | `VideoGetListsID(id)` | `db:getPlaylistVideos` |
 | 数据库 | `InsertVideoinfo(info)` | `db:addVideo` |
 | 事件监听 | `onTogglePlay/onPlayPrevious/onPlayNext(cb)` | `player:toggle/previous/next` |
+| 外部链接 | `openExternal(url)` | `shell:openExternal` |
+| 主题 | `themeSet(isDark)` | `theme:set` |
+| 音频 | `onAudioData(cb)` | `audio:data`（轮询推送） |
 
 监听器需在 `onUnmounted` 中清理（主进程推送给渲染进程的唯一通道）。
+`onAudioData` 返回清理函数，可直接调用。
 
 ## TypeScript 约束
 
@@ -55,6 +59,8 @@ npm test                 # Vitest 运行
 ## 样式约定
 
 - 暗色主题：Naive UI `darkTheme` + `index.html` 根元素 `class="dark"`
+- 亮色主题：Naive UI `lightTheme`，根元素移除 `dark` class
+- 主题切换：`src/styles/naive-theme.ts` 导出 `getTheme(isDark)` 函数，App.vue 根据 `useThemeStore.isDark` 切换
 - CSS 变量：`src/styles/dark/css-vars.css` 在 `html.dark` 选择器下
 - Naive UI 组件覆盖：使用 `:deep(.n-slider)` / `:deep(.svg-icon)`
 - SvgIcon：全局注册，图标名来自 iconfont JS，前缀 `icon-`
@@ -70,4 +76,7 @@ npm test                 # Vitest 运行
 - `npm run build:vite` 中 `vue-tsc` 类型检查可能因版本不匹配失败，可单独 `vite build` 跳过
 - 隐藏窗口有两个：`biliWindow`（持续播放）和 `biliWindow2`（临时抓取元信息后销毁）
 - `formatTime(seconds)` 返回 `HH:MM:SS` 格式
-- `window.electronAPI` 无 TS 类型定义，调用时无 IDE 提示
+- `window.electronAPI` 类型定义在 `src/vite-env.d.ts`
+- AudioBgRipple 支持 6 种动画模式：涟漪/波形/粒子/频谱/放射/极光，由 `useAnimationStore` 控制
+- 主题切换通过 `useThemeStore` 管理，切换时同步修改 `html.dark` class 和 Naive UI 主题
+- 关于页面为独立路由 `/about`，侧栏导航底部新增"关于"图标

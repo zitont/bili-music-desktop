@@ -5,7 +5,7 @@
       <h1 class="playlist-title">歌单管理</h1>
       <n-button type="primary" size="small" @click="showCreateDialog = true">
         <template #icon>
-          <svg-icon iconName="icon-tianjia" color="#08080a"></svg-icon>
+          <svg-icon icon-name="icon-tianjia" class="add-icon"></svg-icon>
         </template>
         新建歌单
       </n-button>
@@ -15,39 +15,46 @@
     <n-scrollbar class="playlist-content">
       <div class="playlist-grid">
         <div
-          v-for="playlist in playlists"
+          v-for="(playlist, index) in playlists"
           :key="playlist.videolists_id"
           class="playlist-card"
           :class="{ active: currentPlaylistId === playlist.videolists_id }"
+          :style="{ animationDelay: Math.min(index, 19) * 30 + 'ms' }"
           @click="selectPlaylist(playlist)"
         >
           <div class="card-header">
             <div class="card-icon">
-              <svg-icon iconName="icon-shoucangjia" color="#c9a55c"></svg-icon>
+              <svg-icon icon-name="icon-shoucangjia" class="card-icon-svg"></svg-icon>
             </div>
             <div class="card-actions">
               <n-button text size="small" @click.stop="editPlaylist(playlist)">
-                <svg-icon iconName="icon-1shezhi-1" color="#8a8890"></svg-icon>
+                <svg-icon icon-name="icon-1shezhi-1"></svg-icon>
               </n-button>
               <n-button text size="small" @click.stop="deletePlaylist(playlist)">
-                <svg-icon iconName="icon-6shanchu-1" color="#8a8890"></svg-icon>
+                <svg-icon icon-name="icon-6shanchu-1"></svg-icon>
               </n-button>
             </div>
           </div>
 
           <div class="card-body">
             <h3 class="card-title">{{ playlist.videolist_name }}</h3>
-            <p class="card-count"><span class="count-num">{{ playlist.video_count || 0 }}</span> 首歌曲</p>
+            <p v-if="playlist.description" class="card-desc">{{ playlist.description }}</p>
+            <p class="card-count">
+              <span class="count-num">{{ playlist.video_count || 0 }}</span> 首歌曲
+            </p>
           </div>
 
           <div class="card-footer">
+            <div class="count-bar">
+              <div class="count-bar-fill" :style="{ width: getCountPercent(playlist) + '%' }"></div>
+            </div>
             <span class="card-time">{{ formatDate(playlist.created_at) }}</span>
           </div>
         </div>
 
         <!-- 空状态 -->
         <div v-if="playlists.length === 0" class="empty-state">
-          <svg-icon iconName="icon-shoucangjia" color="#4a4854" class="empty-icon"></svg-icon>
+          <svg-icon icon-name="icon-empty" class="empty-icon"></svg-icon>
           <span class="empty-text">暂无歌单</span>
           <n-button type="primary" size="small" @click="showCreateDialog = true">
             创建第一个歌单
@@ -92,32 +99,33 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, computed } from 'vue';
 import { useMessage, useDialog } from 'naive-ui';
 import { useMenusStore } from '../../store';
-import { storeToRefs } from 'pinia';
-
-interface Playlist {
-  videolists_id: number;
-  videolist_name: string;
-  video_count?: number;
-  created_at?: string;
-}
+import type { PlaylistItem, PlaylistForm } from '../../types/video';
 
 const message = useMessage();
 const dialog = useDialog();
 const store = useMenusStore();
-const { menus } = storeToRefs(store);
 
-const playlists = ref<Playlist[]>([]);
+const playlists = ref<PlaylistItem[]>([]);
 const currentPlaylistId = ref<number | null>(null);
 const showCreateDialog = ref(false);
-const editingPlaylist = ref<Playlist | null>(null);
+const editingPlaylist = ref<PlaylistItem | null>(null);
 
-const playlistForm = reactive({
+const playlistForm = reactive<PlaylistForm>({
   name: '',
   description: '',
 });
+
+const maxVideoCount = computed(() => {
+  if (playlists.value.length === 0) return 1;
+  return Math.max(...playlists.value.map(p => p.video_count || 0), 1);
+});
+
+function getCountPercent(playlist: PlaylistItem): number {
+  return Math.min(((playlist.video_count || 0) / maxVideoCount.value) * 100, 100);
+}
 
 async function loadPlaylists() {
   try {
@@ -129,19 +137,28 @@ async function loadPlaylists() {
   }
 }
 
-function selectPlaylist(playlist: Playlist) {
+function selectPlaylist(playlist: PlaylistItem) {
   currentPlaylistId.value = playlist.videolists_id;
   store.setMenu(playlist.videolists_id);
+  store.setPlaylistName(playlist.videolist_name);
 }
 
-function editPlaylist(playlist: Playlist) {
+function editPlaylist(playlist: PlaylistItem) {
   editingPlaylist.value = playlist;
   playlistForm.name = playlist.videolist_name;
-  playlistForm.description = '';
+  playlistForm.description = playlist.description || '';
   showCreateDialog.value = true;
 }
 
-function deletePlaylist(playlist: Playlist) {
+function deletePlaylist(playlist: PlaylistItem) {
+  if (playlist.videolists_id === 1) {
+    dialog.info({
+      title: '提示',
+      content: '默认歌单不能删除',
+      positiveText: '知道了',
+    });
+    return;
+  }
   dialog.warning({
     title: '删除歌单',
     content: `确定要删除歌单"${playlist.videolist_name}"吗？此操作不可恢复。`,
@@ -149,9 +166,13 @@ function deletePlaylist(playlist: Playlist) {
     negativeText: '取消',
     onPositiveClick: async () => {
       try {
-        await window.electronAPI.deletePlaylist(playlist.videolists_id);
-        message.success('删除成功');
-        await loadPlaylists();
+        const result = await window.electronAPI.deletePlaylist(playlist.videolists_id);
+        if (result && result.success) {
+          message.success('删除成功');
+          await loadPlaylists();
+        } else {
+          message.error(result?.error || '删除失败');
+        }
       } catch (error) {
         console.error('删除歌单失败:', error);
         message.error('删除失败');
@@ -168,10 +189,14 @@ async function savePlaylist() {
 
   try {
     if (editingPlaylist.value) {
-      await window.electronAPI.updatePlaylist(editingPlaylist.value.videolists_id, playlistForm.name);
+      await window.electronAPI.updatePlaylist(
+        editingPlaylist.value.videolists_id,
+        playlistForm.name,
+        playlistForm.description
+      );
       message.success('更新成功');
     } else {
-      await window.electronAPI.createPlaylist(playlistForm.name);
+      await window.electronAPI.createPlaylist(playlistForm.name, playlistForm.description);
       message.success('创建成功');
     }
 
@@ -206,12 +231,12 @@ onMounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #08080a;
+  background: var(--surface-0);
 }
 
 .playlist-header {
   padding: 20px 24px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--b-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -220,7 +245,7 @@ onMounted(() => {
 .playlist-title {
   font-size: 28px;
   font-weight: 700;
-  color: #e8e6e0;
+  color: var(--text-primary);
   margin: 0;
   letter-spacing: -0.02em;
 }
@@ -232,16 +257,19 @@ onMounted(() => {
 
 .playlist-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 20px;
 }
 
 .playlist-card {
-  background: #14141a;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--surface-1);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--b-border);
   border-radius: 12px;
   padding: 16px;
   cursor: pointer;
+  box-shadow: var(--shadow-sm);
   transition: all var(--duration-normal) var(--ease-out);
   animation: cardFadeIn 0.3s var(--ease-out) both;
 }
@@ -257,23 +285,16 @@ onMounted(() => {
   }
 }
 
-.playlist-card:nth-child(1) { animation-delay: 0ms; }
-.playlist-card:nth-child(2) { animation-delay: 40ms; }
-.playlist-card:nth-child(3) { animation-delay: 80ms; }
-.playlist-card:nth-child(4) { animation-delay: 120ms; }
-.playlist-card:nth-child(5) { animation-delay: 160ms; }
-.playlist-card:nth-child(6) { animation-delay: 200ms; }
-
 .playlist-card:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
-  border-color: rgba(201, 165, 92, 0.15);
+  border-color: var(--border-hover);
 }
 
 .playlist-card.active {
-  background: rgba(201, 165, 92, 0.04);
-  border-color: rgba(201, 165, 92, 0.2);
-  border-left: 3px solid #c9a55c;
+  background: var(--b-hover);
+  border-color: var(--border-active);
+  border-left: 3px solid var(--color-primary);
 }
 
 .card-header {
@@ -286,7 +307,7 @@ onMounted(() => {
 .card-icon {
   width: 40px;
   height: 40px;
-  background: linear-gradient(135deg, rgba(201, 165, 92, 0.1), rgba(201, 165, 92, 0.05));
+  background: var(--gradient-primary-subtle);
   border-radius: 10px;
   display: flex;
   align-items: center;
@@ -304,6 +325,15 @@ onMounted(() => {
   gap: 4px;
   opacity: 0;
   transition: opacity var(--duration-fast) var(--ease-in-out);
+  color: var(--text-secondary);
+}
+
+.card-icon-svg {
+  color: var(--color-primary);
+}
+
+.add-icon {
+  color: var(--text-inverse);
 }
 
 .playlist-card:hover .card-actions {
@@ -317,7 +347,16 @@ onMounted(() => {
 .card-title {
   font-size: 15px;
   font-weight: 600;
-  color: #e8e6e0;
+  color: var(--text-primary);
+  margin: 0 0 4px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-desc {
+  font-size: 12px;
+  color: var(--text-tertiary);
   margin: 0 0 4px 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -326,24 +365,41 @@ onMounted(() => {
 
 .card-count {
   font-size: 11px;
-  color: #4a4854;
+  color: var(--text-tertiary);
   margin: 0;
 }
 
 .count-num {
-  color: #c9a55c;
+  color: var(--color-primary);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
 .card-footer {
   padding-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  border-top: 1px solid var(--b-border-light);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.count-bar {
+  height: 3px;
+  background: var(--surface-3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.count-bar-fill {
+  height: 100%;
+  background: var(--gradient-primary);
+  border-radius: 2px;
+  transition: width var(--duration-normal) var(--ease-out);
 }
 
 .card-time {
   font-size: 10px;
-  color: #4a4854;
+  color: var(--text-tertiary);
 }
 
 .empty-state {
@@ -358,10 +414,11 @@ onMounted(() => {
 
 .empty-icon {
   font-size: 48px;
+  color: var(--text-tertiary);
 }
 
 .empty-text {
   font-size: 13px;
-  color: #4a4854;
+  color: var(--text-tertiary);
 }
 </style>

@@ -2,19 +2,19 @@
   <div class="header">
     <div class="header-drag">
       <div class="app-title">
-        <svg-icon iconName="icon-shoucangjia" color="#c9a55c" class="app-icon"></svg-icon>
+        <svg-icon icon-name="icon-shoucangjia" color="#c9a55c" class="app-icon"></svg-icon>
         <span>Bili Music</span>
       </div>
     </div>
     <div class="window-controls">
       <button class="win-btn" @click="WindowMin">
-        <svg-icon iconName="icon-2zuixiaohua-1" color="#8a8890"></svg-icon>
+        <svg-icon icon-name="icon-2zuixiaohua-1" class="win-icon"></svg-icon>
       </button>
       <button class="win-btn" @click="WindowMax">
-        <svg-icon iconName="icon-3zuidahua-1" color="#8a8890"></svg-icon>
+        <svg-icon icon-name="icon-3zuidahua-1" class="win-icon"></svg-icon>
       </button>
       <button class="win-btn win-btn-close" @click="WindowClose">
-        <svg-icon iconName="icon-4guanbi-1" color="#8a8890"></svg-icon>
+        <svg-icon icon-name="icon-4guanbi-1" class="win-icon"></svg-icon>
       </button>
     </div>
   </div>
@@ -39,8 +39,8 @@ function WindowClose() {
   display: flex;
   width: 100%;
   height: 32px;
-  background: #101014;
-  border-bottom: 1px solid rgba(201, 165, 92, 0.06);
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--b-border-light);
 }
 
 .header-drag {
@@ -57,7 +57,7 @@ function WindowClose() {
   gap: 8px;
   font-size: 12px;
   font-weight: 600;
-  color: #e8e6e0;
+  color: var(--text-primary);
   user-select: none;
   letter-spacing: 0.02em;
 }
@@ -69,6 +69,10 @@ function WindowClose() {
 .window-controls {
   display: flex;
   -webkit-app-region: no-drag;
+}
+
+.win-icon {
+  color: var(--text-primary);
 }
 
 .win-btn {
@@ -85,15 +89,15 @@ function WindowClose() {
 }
 
 .win-btn:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--b-hover-neutral);
 }
 
-.win-btn:hover :deep(.svg-icon) {
-  color: #e8e6e0;
+.win-btn:hover .win-icon {
+  color: var(--text-primary);
 }
 
 .win-btn:active {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--surface-3);
 }
 
 .win-btn-close:hover {

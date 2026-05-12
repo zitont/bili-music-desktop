@@ -5,65 +5,62 @@
     </div>
 
     <n-scrollbar class="settings-content">
-      <!-- 关于部分 -->
-      <div class="settings-section">
-        <h2 class="section-title">关于</h2>
-        <div class="about-card">
-          <div class="app-info">
-            <div class="app-icon-wrapper">
-              <svg-icon iconName="icon-shoucangjia" color="#c9a55c" class="app-icon"></svg-icon>
+      <div class="setting-card">
+        <div class="card-section">
+          <h2 class="card-section-title">外观</h2>
+          <div class="setting-row">
+            <div class="setting-info">
+              <span class="setting-label">深色模式</span>
+              <span class="setting-desc">切换亮色/暗色主题</span>
             </div>
-            <div class="app-details">
-              <h3 class="app-name">Bili Music</h3>
-              <p class="app-description">哔哩哔哩音乐桌面客户端</p>
-            </div>
+            <n-switch :value="themeStore.isDark" @update:value="themeStore.toggleTheme" />
           </div>
-
-          <div class="info-grid">
-            <div class="info-item">
-              <span class="info-label">版本</span>
-              <span class="info-value version-value">{{ version }}</span>
+          <div class="setting-row-divider"></div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <span class="setting-label">磨砂玻璃</span>
+              <span class="setting-desc">半透明背景毛玻璃效果</span>
             </div>
-            <div class="info-item">
-              <span class="info-label">Electron</span>
-              <span class="info-value">{{ electronVersion }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Vue</span>
-              <span class="info-value">{{ vueVersion }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">作者</span>
-              <span class="info-value">{{ author }}</span>
-            </div>
-          </div>
-
-          <div class="links-section">
-            <n-button text @click="openGitHub" class="github-btn">
-              <template #icon>
-                <svg-icon iconName="icon-gengduoxiao" color="#c9a55c"></svg-icon>
-              </template>
-              GitHub 仓库
-            </n-button>
+            <n-switch :value="themeStore.glassEnabled" @update:value="themeStore.toggleGlass" />
           </div>
         </div>
-      </div>
 
-      <!-- 系统信息 -->
-      <div class="settings-section">
-        <h2 class="section-title">系统信息</h2>
-        <div class="info-card">
-          <div class="info-item">
-            <span class="info-label">操作系统</span>
-            <span class="info-value">{{ osInfo }}</span>
+        <div class="card-divider"></div>
+
+        <div class="card-section">
+          <h2 class="card-section-title">播放动画</h2>
+          <div class="setting-row">
+            <div class="setting-info">
+              <span class="setting-label">背景动画</span>
+              <span class="setting-desc">播放音乐时显示动态背景</span>
+            </div>
+            <n-switch :value="animStore.enabled" @update:value="animStore.toggleEnabled" />
           </div>
-          <div class="info-item">
-            <span class="info-label">架构</span>
-            <span class="info-value">{{ arch }}</span>
+          <div class="setting-row-divider"></div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <span class="setting-label">动画效果</span>
+              <span class="setting-desc">{{ animOptions[animStore.mode] }}</span>
+            </div>
+            <n-select
+              :value="animStore.mode"
+              :options="animOptions.map((label, value) => ({ label, value }))"
+              style="width: 140px"
+              @update:value="animStore.setMode"
+            />
           </div>
-          <div class="info-item">
-            <span class="info-label">内存</span>
-            <span class="info-value">{{ memory }}</span>
+        </div>
+
+        <div class="card-divider"></div>
+
+        <div class="card-section">
+          <h2 class="card-section-title">关于</h2>
+          <div class="setting-row link-row" @click="goAbout">
+            <div class="setting-info">
+              <span class="setting-label">关于 Bili Music</span>
+              <span class="setting-desc">版本信息与项目链接</span>
+            </div>
+            <svg-icon icon-name="icon-arrow-right" class="link-arrow"></svg-icon>
           </div>
         </div>
       </div>
@@ -72,43 +69,26 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { NScrollbar, NSwitch, NSelect } from 'naive-ui';
+import { useRouter } from 'vue-router';
+import { useThemeStore, useAnimationStore } from '@/store';
 
-const version = ref('1.0.0');
-const electronVersion = ref('');
-const vueVersion = ref('3.5');
-const author = ref('zitont');
-const osInfo = ref('');
-const arch = ref('');
-const memory = ref('');
+const router = useRouter();
+const themeStore = useThemeStore();
+const animStore = useAnimationStore();
 
-function getSystemInfo() {
-  version.value = '1.0.0';
-  author.value = 'zitont';
+const animOptions = [
+  '涟漪扩散',
+  '波形律动',
+  '粒子浮游',
+  '频谱瀑布',
+  '放射光圈',
+  '极光流彩',
+];
 
-  if (window.electronAPI) {
-    window.electronAPI.getSystemInfo().then((info) => {
-      if (info) {
-        electronVersion.value = info.electronVersion || '';
-        osInfo.value = info.os || '';
-        arch.value = info.arch || '';
-        memory.value = info.memory || '';
-      }
-    }).catch(() => {
-      electronVersion.value = '29.x';
-    });
-  }
-
-  vueVersion.value = '3.5';
+function goAbout() {
+  router.push('/about');
 }
-
-function openGitHub() {
-  window.open('https://github.com/zitont/bili-music-desktop', '_blank');
-}
-
-onMounted(() => {
-  getSystemInfo();
-});
 </script>
 
 <style scoped>
@@ -116,37 +96,36 @@ onMounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #08080a;
+  background: var(--surface-0);
 }
 
 .settings-header {
   padding: 20px 24px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--b-border);
 }
 
 .settings-title {
   font-size: 28px;
   font-weight: 700;
-  color: #e8e6e0;
+  color: var(--text-primary);
   margin: 0;
   letter-spacing: -0.02em;
 }
 
 .settings-content {
   flex: 1;
-  padding: 20px 24px;
+  padding: 16px 24px;
 }
 
-.settings-section {
-  margin-bottom: 32px;
-  animation: sectionFadeIn 0.3s var(--ease-out) both;
+.setting-card {
+  background: var(--surface-1);
+  border: 1px solid var(--b-border);
+  border-radius: 12px;
+  overflow: hidden;
+  animation: cardFadeIn 0.3s var(--ease-out) both;
 }
 
-.settings-section:nth-child(2) {
-  animation-delay: 80ms;
-}
-
-@keyframes sectionFadeIn {
+@keyframes cardFadeIn {
   from {
     opacity: 0;
     transform: translateY(10px);
@@ -157,116 +136,72 @@ onMounted(() => {
   }
 }
 
-.section-title {
-  font-size: 10px;
-  font-weight: 500;
-  color: #8a8890;
+.card-section {
+  padding: 16px 20px;
+}
+
+.card-divider {
+  height: 1px;
+  margin: 0 20px;
+  background-color: var(--b-border);
+}
+
+.card-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
   margin: 0 0 12px 0;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
 }
 
-.about-card {
-  background: #16161c;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-left: 3px solid #c9a55c;
-  border-radius: 0 12px 12px 0;
-  padding: 20px;
-}
-
-.app-info {
+.setting-row {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 20px;
-}
-
-.app-icon-wrapper {
-  width: 64px;
-  height: 64px;
-  background: linear-gradient(135deg, rgba(201, 165, 92, 0.15), rgba(201, 165, 92, 0.05));
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.app-icon {
-  font-size: 32px;
-}
-
-.app-details {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.app-name {
-  font-size: 20px;
-  font-weight: 600;
-  color: #e8e6e0;
-  margin: 0;
-}
-
-.app-description {
-  font-size: 13px;
-  color: #8a8890;
-  margin: 0;
-}
-
-.info-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.info-card {
-  background: #16161c;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.info-item {
-  display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: 8px 0;
+  min-height: 40px;
 }
 
-.info-label {
-  font-size: 13px;
-  color: #8a8890;
+.setting-row-divider {
+  height: 1px;
+  margin: 0 0 4px 0;
+  background-color: var(--b-border);
 }
 
-.info-value {
-  font-size: 13px;
-  color: #e8e6e0;
+.link-row {
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-in-out);
+  border-radius: 8px;
+  padding: 0 4px;
+}
+
+.link-row:hover {
+  background: var(--b-hover);
+}
+
+.setting-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.setting-label {
+  font-size: 14px;
+  color: var(--text-primary);
   font-weight: 500;
 }
 
-.version-value {
-  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
-  color: #c9a55c;
-  font-weight: 600;
+.setting-desc {
+  font-size: 12px;
+  color: var(--text-tertiary);
 }
 
-.links-section {
-  padding-top: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+.link-arrow {
+  font-size: 18px;
+  color: var(--text-tertiary);
+  transition: color var(--duration-fast) var(--ease-in-out);
 }
 
-.github-btn {
-  font-size: 13px;
-  color: #c9a55c;
-}
-
-.github-btn:hover {
-  color: #dbb978;
+.link-row:hover .link-arrow {
+  color: var(--text-primary);
 }
 </style>
