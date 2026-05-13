@@ -54,6 +54,29 @@
         <div class="card-divider"></div>
 
         <div class="card-section">
+          <h2 class="card-section-title">账号</h2>
+          <div class="setting-row">
+            <div class="setting-info">
+              <span class="setting-label">SESSDATA</span>
+              <span class="setting-desc">{{ sessdataStatus }}</span>
+            </div>
+            <n-button size="small" :type="sessdataConfigured ? 'default' : 'primary'" @click="showSessdataModal = true">
+              {{ sessdataConfigured ? '更新' : '配置' }}
+            </n-button>
+          </div>
+          <div class="setting-row-divider"></div>
+          <div class="setting-row">
+            <div class="setting-info" style="max-width: 100%">
+              <span class="setting-desc" style="line-height: 1.6">
+                SESSDATA 用于获取音频流地址。获取方式：浏览器登录 bilibili.com → F12 → Application → Cookies → 复制 SESSDATA 值
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-divider"></div>
+
+        <div class="card-section">
           <h2 class="card-section-title">数据</h2>
           <div class="setting-row">
             <div class="setting-info">
@@ -78,12 +101,34 @@
         </div>
       </div>
     </n-scrollbar>
+
+    <!-- SESSDATA 配置弹窗 -->
+    <n-modal v-model:show="showSessdataModal" preset="card" title="配置 SESSDATA" style="width: 480px">
+      <div style="display: flex; flex-direction: column; gap: 12px">
+        <n-input
+          v-model:value="sessdataInput"
+          type="password"
+          show-password-on="click"
+          placeholder="粘贴 SESSDATA 值"
+          :rows="3"
+        />
+        <div style="font-size: 12px; color: var(--text-tertiary); line-height: 1.6">
+          浏览器登录 bilibili.com → F12 打开开发者工具 → Application → Cookies →
+          找到 SESSDATA 并复制其值
+        </div>
+      </div>
+      <template #action>
+        <n-button @click="showSessdataModal = false">取消</n-button>
+        <n-button v-if="sessdataConfigured" @click="clearSessdata">清除</n-button>
+        <n-button type="primary" @click="saveSessdata">保存</n-button>
+      </template>
+    </n-modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { NScrollbar, NSwitch, NSelect, NButton, useMessage } from 'naive-ui';
+import { ref, computed, onMounted } from 'vue';
+import { NScrollbar, NSwitch, NSelect, NButton, NInput, NModal, useMessage } from 'naive-ui';
 import { useRouter } from 'vue-router';
 import { useThemeStore, useAnimationStore } from '@/store';
 
@@ -93,6 +138,13 @@ const animStore = useAnimationStore();
 const message = useMessage();
 
 const dataDir = ref('');
+const sessdataConfigured = ref(false);
+const showSessdataModal = ref(false);
+const sessdataInput = ref('');
+
+const sessdataStatus = computed(() =>
+  sessdataConfigured.value ? '已配置' : '未配置（播放功能需要）'
+);
 
 const animOptions = [
   '涟漪扩散',
@@ -127,12 +179,52 @@ async function loadDataDir() {
   }
 }
 
+async function loadSessdataStatus() {
+  try {
+    const result = await window.electronAPI.authGetSessdata();
+    sessdataConfigured.value = result.hasSessdata;
+  } catch {
+    // 忽略
+  }
+}
+
+async function saveSessdata() {
+  const value = sessdataInput.value.trim();
+  if (!value) {
+    message.warning('请输入 SESSDATA');
+    return;
+  }
+  try {
+    await window.electronAPI.authSetSessdata(value);
+    sessdataConfigured.value = true;
+    showSessdataModal.value = false;
+    sessdataInput.value = '';
+    message.success('SESSDATA 已保存');
+  } catch (error) {
+    console.error('保存 SESSDATA 失败:', error);
+    message.error('保存失败');
+  }
+}
+
+async function clearSessdata() {
+  try {
+    await window.electronAPI.authSetSessdata('');
+    sessdataConfigured.value = false;
+    showSessdataModal.value = false;
+    message.success('SESSDATA 已清除');
+  } catch (error) {
+    console.error('清除 SESSDATA 失败:', error);
+    message.error('清除失败');
+  }
+}
+
 function goAbout() {
   router.push('/about');
 }
 
 onMounted(() => {
   loadDataDir();
+  loadSessdataStatus();
 });
 </script>
 
