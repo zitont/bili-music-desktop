@@ -79,7 +79,7 @@ describe('AudioAnalyzer', () => {
 
       mockBiliWindow.isDestroyed.mockReturnValue(true);
 
-      vi.advanceTimersByTime(100);
+      vi.advanceTimersByTime(120);
 
       expect(analyzer.pollInterval).toBeNull();
     });

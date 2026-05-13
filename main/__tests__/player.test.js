@@ -1,184 +1,141 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// 使用 vi.hoisted 确保 mock 函数在 vi.mock 之前可用
-const { safeExecuteJavaScriptMock } = vi.hoisted(() => ({
-  safeExecuteJavaScriptMock: vi.fn(),
-}));
+describe('player', () => {
+  let getVideoInfo, getAudioStreamUrl, cleanupCache;
+  let getVideoInfoMock, getPlayUrlMock;
 
-vi.mock('../utils.js', () => ({
-  safeExecuteJavaScript: safeExecuteJavaScriptMock,
-  WINDOW_LOAD_TIMEOUT: 30000,
-}));
+  beforeEach(async () => {
+    vi.resetModules();
 
-import {
-  getVideoCurrentTime,
-  setPlayerVolume,
-  getVideoDuration,
-  controlPlayback,
-} from '../player.js';
+    getVideoInfoMock = vi.fn();
+    getPlayUrlMock = vi.fn();
 
-describe('播放控制', () => {
-  let mockBiliWindow;
+    vi.doMock('../bilibili-api.js', () => ({
+      getVideoInfo: getVideoInfoMock,
+      getPlayUrl: getPlayUrlMock,
+    }));
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockBiliWindow = {
-      isDestroyed: vi.fn(() => false),
-      webContents: {
-        executeJavaScript: vi.fn(),
-      },
-    };
+    const mod = await import('../player.js');
+    getVideoInfo = mod.getVideoInfo;
+    getAudioStreamUrl = mod.getAudioStreamUrl;
+    cleanupCache = mod.cleanupCache;
   });
 
-  describe('getVideoCurrentTime', () => {
-    it('应该获取当前播放时间', async () => {
-      safeExecuteJavaScriptMock.mockResolvedValue(120);
+  describe('getVideoInfo', () => {
+    it('应该通过 API 获取视频元数据', async () => {
+      getVideoInfoMock.mockResolvedValue({
+        bvid: 'BV1xx411c7mD',
+        title: '测试视频',
+        cover: 'http://i0.hdslb.com/cover.jpg',
+        duration: 300,
+        upName: 'UP主',
+        upMid: 12345,
+        cid: 67890,
+        pages: [{ cid: 67890, part: 'P1' }],
+      });
 
-      const result = await getVideoCurrentTime(mockBiliWindow, undefined);
+      const result = await getVideoInfo('BV1xx411c7mD');
 
-      expect(result).toBe(120);
-      expect(safeExecuteJavaScriptMock).toHaveBeenCalledWith(
-        mockBiliWindow,
-        expect.stringContaining('videoDom.currentTime')
-      );
+      expect(result.bvid).toBe('BV1xx411c7mD');
+      expect(result.videotitle).toBe('测试视频');
+      expect(result.videopic).toBe('https://i0.hdslb.com/cover.jpg');
+      expect(result.videoduration).toBe(300);
+      expect(result.upname).toBe('UP主');
+      expect(result.cid).toBe(67890);
+      expect(getVideoInfoMock).toHaveBeenCalledWith('BV1xx411c7mD');
     });
 
-    it('应该设置播放时间', async () => {
-      safeExecuteJavaScriptMock.mockResolvedValue(60);
+    it('应该将 http 封面地址转换为 https', async () => {
+      getVideoInfoMock.mockResolvedValue({
+        bvid: 'BV2xx411c7mD',
+        title: '测试',
+        cover: 'http://example.com/cover.jpg',
+        duration: 100,
+        upName: 'UP',
+        upMid: 1,
+        cid: 2,
+      });
 
-      const result = await getVideoCurrentTime(mockBiliWindow, 60);
+      const result = await getVideoInfo('BV2xx411c7mD');
 
-      expect(result).toBe(60);
-      expect(safeExecuteJavaScriptMock).toHaveBeenCalledWith(
-        mockBiliWindow,
-        expect.stringContaining('60')
-      );
+      expect(result.videopic).toBe('https://example.com/cover.jpg');
     });
 
-    it('应该在窗口不可用时抛出错误', async () => {
-      await expect(getVideoCurrentTime(null, 0)).rejects.toThrow(
-        'Bili window is not available'
-      );
+    it('应该处理空封面地址', async () => {
+      getVideoInfoMock.mockResolvedValue({
+        bvid: 'BV3xx411c7mD',
+        title: '测试',
+        cover: '',
+        duration: 100,
+        upName: 'UP',
+        upMid: 1,
+        cid: 2,
+      });
+
+      const result = await getVideoInfo('BV3xx411c7mD');
+
+      expect(result.videopic).toBe('');
     });
 
-    it('应该在窗口已销毁时抛出错误', async () => {
-      mockBiliWindow.isDestroyed.mockReturnValue(true);
+    it('应该在 10 分钟内使用缓存', async () => {
+      getVideoInfoMock.mockResolvedValue({
+        bvid: 'BV4xx411c7mD',
+        title: '测试',
+        cover: '',
+        duration: 100,
+        upName: 'UP',
+        upMid: 1,
+        cid: 2,
+      });
 
-      await expect(getVideoCurrentTime(mockBiliWindow, 0)).rejects.toThrow(
-        'Bili window is not available'
-      );
-    });
-  });
+      await getVideoInfo('BV4xx411c7mD');
+      await getVideoInfo('BV4xx411c7mD');
 
-  describe('setPlayerVolume', () => {
-    it('应该设置音量', async () => {
-      safeExecuteJavaScriptMock.mockResolvedValue(0.8);
-
-      const result = await setPlayerVolume(mockBiliWindow, 0.8);
-
-      expect(result).toBe(0.8);
-      expect(safeExecuteJavaScriptMock).toHaveBeenCalledWith(
-        mockBiliWindow,
-        expect.stringContaining('0.8')
-      );
+      expect(getVideoInfoMock).toHaveBeenCalledTimes(1);
     });
 
-    it('应该限制音量范围在 0-1', async () => {
-      safeExecuteJavaScriptMock.mockResolvedValue(1);
+    it('应该在 API 调用失败时抛出错误', async () => {
+      getVideoInfoMock.mockRejectedValue(new Error('网络错误'));
 
-      const result = await setPlayerVolume(mockBiliWindow, 1.5);
-
-      expect(result).toBe(1);
-    });
-
-    it('应该在窗口不可用时返回 null', async () => {
-      const result = await setPlayerVolume(null, 0.5);
-
-      expect(result).toBeNull();
-    });
-
-    it('应该在窗口已销毁时返回 null', async () => {
-      mockBiliWindow.isDestroyed.mockReturnValue(true);
-
-      const result = await setPlayerVolume(mockBiliWindow, 0.5);
-
-      expect(result).toBeNull();
+      await expect(getVideoInfo('BV5xx411c7mD')).rejects.toThrow('网络错误');
     });
   });
 
-  describe('getVideoDuration', () => {
-    it('应该获取视频时长', async () => {
-      safeExecuteJavaScriptMock.mockResolvedValue(300);
+  describe('getAudioStreamUrl', () => {
+    it('应该获取音频流地址', async () => {
+      const mockAudioData = {
+        audioUrl: 'https://bilivideo.com/audio.mp3',
+        duration: 300,
+        codec: 'mp4a.40.2',
+        bandwidth: 128000,
+      };
+      getPlayUrlMock.mockResolvedValue(mockAudioData);
 
-      const result = await getVideoDuration(mockBiliWindow);
+      const result = await getAudioStreamUrl('BV1xx411c7mD', 67890);
 
-      expect(result).toBe(300);
-      expect(safeExecuteJavaScriptMock).toHaveBeenCalledWith(
-        mockBiliWindow,
-        expect.stringContaining('videoDom.duration')
-      );
+      expect(result).toEqual(mockAudioData);
+      expect(getPlayUrlMock).toHaveBeenCalledWith('BV1xx411c7mD', 67890);
     });
 
-    it('应该在窗口不可用时抛出错误', async () => {
-      await expect(getVideoDuration(null)).rejects.toThrow(
-        'Bili window is not available'
-      );
+    it('应该在缓存有效期内使用缓存', async () => {
+      const mockAudioData = {
+        audioUrl: 'https://bilivideo.com/audio.mp3',
+        duration: 300,
+        codec: 'mp4a.40.2',
+        bandwidth: 128000,
+      };
+      getPlayUrlMock.mockResolvedValue(mockAudioData);
+
+      await getAudioStreamUrl('BV1xx411c7mD', 67890);
+      await getAudioStreamUrl('BV1xx411c7mD', 67890);
+
+      expect(getPlayUrlMock).toHaveBeenCalledTimes(1);
     });
 
-    it('应该在窗口已销毁时抛出错误', async () => {
-      mockBiliWindow.isDestroyed.mockReturnValue(true);
+    it('应该在 API 调用失败时抛出错误', async () => {
+      getPlayUrlMock.mockRejectedValue(new Error('获取音频流失败'));
 
-      await expect(getVideoDuration(mockBiliWindow)).rejects.toThrow(
-        'Bili window is not available'
-      );
-    });
-  });
-
-  describe('controlPlayback', () => {
-    it('应该执行播放操作', async () => {
-      safeExecuteJavaScriptMock.mockResolvedValue(true);
-
-      const result = await controlPlayback(mockBiliWindow, 'play');
-
-      expect(result).toBe(true);
-      expect(safeExecuteJavaScriptMock).toHaveBeenCalledWith(
-        mockBiliWindow,
-        expect.stringContaining('player.play()')
-      );
-    });
-
-    it('应该执行暂停操作', async () => {
-      safeExecuteJavaScriptMock.mockResolvedValue(true);
-
-      const result = await controlPlayback(mockBiliWindow, 'pause');
-
-      expect(result).toBe(true);
-      expect(safeExecuteJavaScriptMock).toHaveBeenCalledWith(
-        mockBiliWindow,
-        expect.stringContaining('player.pause()')
-      );
-    });
-
-    it('应该在窗口不可用时返回 false', async () => {
-      const result = await controlPlayback(null, 'play');
-
-      expect(result).toBe(false);
-    });
-
-    it('应该在窗口已销毁时返回 false', async () => {
-      mockBiliWindow.isDestroyed.mockReturnValue(true);
-
-      const result = await controlPlayback(mockBiliWindow, 'play');
-
-      expect(result).toBe(false);
-    });
-
-    it('应该在执行失败时返回 false', async () => {
-      safeExecuteJavaScriptMock.mockRejectedValue(new Error('执行失败'));
-
-      const result = await controlPlayback(mockBiliWindow, 'play');
-
-      expect(result).toBe(false);
+      await expect(getAudioStreamUrl('BV1xx411c7mD', 67890)).rejects.toThrow('获取音频流失败');
     });
   });
 });
