@@ -1,4 +1,4 @@
-import { app, net } from 'electron';
+import { app } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -24,11 +24,15 @@ function getSessdataPath() {
 function loadSessdata() {
   try {
     const filePath = getSessdataPath();
+    console.log('[bilibili-api] 加载 SESSDATA 从:', filePath);
     if (fs.existsSync(filePath)) {
       sessdata = fs.readFileSync(filePath, 'utf-8').trim();
+      console.log('[bilibili-api] SESSDATA 已加载:', sessdata ? `${sessdata.length} 字符` : '空');
+    } else {
+      console.log('[bilibili-api] SESSDATA 文件不存在');
     }
-  } catch {
-    // 加载失败，使用空值
+  } catch (e) {
+    console.error('[bilibili-api] 加载 SESSDATA 失败:', e.message);
   }
   return sessdata;
 }
@@ -39,8 +43,10 @@ function loadSessdata() {
  */
 function saveSessdata(value) {
   sessdata = (value || '').trim();
+  console.log('[bilibili-api] 保存 SESSDATA:', sessdata ? `已设置 (${sessdata.length} 字符)` : '已清除');
   try {
     fs.writeFileSync(getSessdataPath(), sessdata, 'utf-8');
+    console.log('[bilibili-api] SESSDATA 已写入文件');
   } catch (error) {
     console.error('保存 SESSDATA 失败:', error.message);
   }
@@ -61,61 +67,40 @@ function getSessdataStatus() {
  * @param {boolean} requiresAuth - 是否需要 SESSDATA
  * @returns {Promise<any>} API 返回的 data 字段
  */
-function request(endpoint, params = {}, requiresAuth = false) {
-  return new Promise((resolve, reject) => {
-    if (requiresAuth && !sessdata) {
-      reject(new Error('需要 SESSDATA 认证，请先在设置中配置'));
-      return;
-    }
+async function request(endpoint, params = {}, requiresAuth = false) {
+  if (requiresAuth && !sessdata) {
+    console.error('[bilibili-api] SESSDATA 未配置，需要认证的请求被拒绝');
+    throw new Error('需要 SESSDATA 认证，请先在设置中配置');
+  }
 
-    const url = new URL(endpoint, API_BASE);
-    for (const [key, value] of Object.entries(params)) {
-      if (value != null) url.searchParams.set(key, String(value));
-    }
+  const url = new URL(endpoint, API_BASE);
+  for (const [key, value] of Object.entries(params)) {
+    if (value != null) url.searchParams.set(key, String(value));
+  }
 
-    const headers = {
-      'Referer': REFERER,
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-    };
+  const headers = {
+    'Referer': REFERER,
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+  };
 
-    if (sessdata) {
-      headers['Cookie'] = `SESSDATA=${sessdata}`;
-    }
+  if (sessdata) {
+    headers['Cookie'] = `SESSDATA=${sessdata}`;
+  }
 
-    const request = net.request({
-      method: 'GET',
-      url: url.toString(),
-    });
+  console.log('[bilibili-api] 请求:', url.toString(), '需要认证:', requiresAuth, 'SESSDATA:', sessdata ? `已设置 (${sessdata.length}字符)` : '未设置');
 
-    for (const [key, value] of Object.entries(headers)) {
-      request.setHeader(key, value);
-    }
+  const response = await fetch(url.toString(), { headers });
+  console.log('[bilibili-api] 响应状态:', response.status);
 
-    let body = '';
-    request.on('response', (response) => {
-      response.on('data', (chunk) => {
-        body += chunk.toString();
-      });
-      response.on('end', () => {
-        try {
-          const json = JSON.parse(body);
-          if (json.code !== 0) {
-            reject(new Error(`B 站 API 错误 (${json.code}): ${json.message || '未知错误'}`));
-            return;
-          }
-          resolve(json.data);
-        } catch {
-          reject(new Error('解析 API 响应失败'));
-        }
-      });
-    });
+  const body = await response.text();
+  const json = JSON.parse(body);
+  console.log('[bilibili-api] 响应 code:', json.code, 'message:', json.message);
 
-    request.on('error', (error) => {
-      reject(new Error(`网络请求失败: ${error.message}`));
-    });
+  if (json.code !== 0) {
+    throw new Error(`B 站 API 错误 (${json.code}): ${json.message || '未知错误'}`);
+  }
 
-    request.end();
-  });
+  return json.data;
 }
 
 /**

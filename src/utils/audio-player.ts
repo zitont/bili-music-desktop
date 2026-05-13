@@ -45,7 +45,6 @@ function getAudio(): HTMLAudioElement {
     audio = new Audio();
     audio.volume = lastState.volume;
     audio.preload = 'auto';
-    audio.crossOrigin = 'anonymous';
 
     audio.addEventListener('timeupdate', notifyState);
     audio.addEventListener('loadedmetadata', notifyState);
