@@ -153,6 +153,7 @@ function goToAdd() {
 }
 
 async function handoffvideo(item: VideoItem, index: number) {
+  audioPlayer.prepareAudioContext();
   const startTime = item.video_startTime || 0;
   const endTime = item.video_endtime || item.video_duration;
 
@@ -166,15 +167,21 @@ async function handoffvideo(item: VideoItem, index: number) {
   try {
     // 通过 API 获取音频流并播放
     const info = await window.electronAPI.apiGetVideoInfo(item.video_bvid);
-    if (!info) return;
+    if (!info) {
+      message.error('获取视频信息失败');
+      return;
+    }
     const audioData = await window.electronAPI.apiGetAudioUrl(item.video_bvid, info.cid);
-    if (!audioData) return;
+    if (!audioData) {
+      message.error('获取音频流失败，请检查 SESSDATA');
+      return;
+    }
     audioPlayer.play(audioData.audioUrl, startTime);
     audioPlayer.setVolume(volume.value / 100);
     playback_status.value = true;
   } catch (error) {
     console.error('播放失败:', error);
-    message.error('播放失败，请检查 SESSDATA 配置');
+    message.error('播放失败: ' + (error instanceof Error ? error.message : '未知错误'));
   }
 }
 

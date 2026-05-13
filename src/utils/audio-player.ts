@@ -1,6 +1,7 @@
 /**
  * 渲染进程音频播放器
- * 管理全局 <audio> 元素，集成 Web Audio API 用于音频可视化
+ * 管理全局 <audio> 元素，通过模拟数据驱动可视化动画
+ * 不使用 Web Audio API，避免 MediaElementAudioSourceNode 接管音频输出导致无声
  */
 
 export interface AudioPlayerState {
@@ -20,10 +21,6 @@ type VisualDataListener = (data: AudioVisualData) => void;
 type EndedListener = () => void;
 
 let audio: HTMLAudioElement | null = null;
-let audioContext: AudioContext | null = null;
-let analyser: AnalyserNode | null = null;
-let source: MediaElementAudioSourceNode | null = null;
-let dataArray: Uint8Array | null = null;
 let visualFrameId = 0;
 
 const stateListeners = new Set<StateChangeListener>();
@@ -37,6 +34,11 @@ let lastState: AudioPlayerState = {
   volume: 0.6,
 };
 
+// 模拟可视化参数
+let simPhase = 0;
+let simBeat = 0;
+let simLastTime = 0;
+
 /**
  * 获取或创建全局 Audio 元素
  */
@@ -48,54 +50,63 @@ function getAudio(): HTMLAudioElement {
 
     audio.addEventListener('timeupdate', notifyState);
     audio.addEventListener('loadedmetadata', notifyState);
-    audio.addEventListener('play', notifyState);
-    audio.addEventListener('pause', notifyState);
+    audio.addEventListener('play', () => {
+      notifyState();
+      startVisualLoop();
+    });
+    audio.addEventListener('pause', () => {
+      notifyState();
+      stopVisualLoop();
+    });
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('volumechange', notifyState);
+    audio.addEventListener('error', () => {
+      console.error('[audio-player] 音频加载错误:', audio?.error);
+    });
   }
   return audio;
 }
 
 /**
- * 初始化 Web Audio API 分析器
+ * 模拟可视化数据生成
+ * 基于时间的节拍模拟，产生有节奏感的动画效果
  */
-function ensureAnalyser(): void {
-  if (analyser || !audio) return;
+function generateSimData(): AudioVisualData {
+  const now = performance.now();
+  const dt = simLastTime ? (now - simLastTime) / 1000 : 0.016;
+  simLastTime = now;
 
-  try {
-    audioContext = new AudioContext();
-    analyser = audioContext.createAnalyser();
-    analyser.fftSize = 256;
-    source = audioContext.createMediaElementSource(audio);
-    source.connect(analyser);
-    analyser.connect(audioContext.destination);
-    dataArray = new Uint8Array(analyser.frequencyBinCount);
-    startVisualLoop();
-  } catch {
-    // Web Audio 初始化失败，静默处理
-  }
+  // 模拟 BPM ~120 的节拍
+  simBeat += dt * 2;
+  if (simBeat > 1) simBeat -= 1;
+
+  // 相位漂移，产生变化
+  simPhase += dt * 0.7;
+
+  // 节拍脉冲 + 正弦波动 + 噪声
+  const beatPulse = Math.pow(Math.max(0, 1 - simBeat * 4), 2);
+  const wave = 0.3 + 0.2 * Math.sin(simPhase * 2.1) + 0.1 * Math.sin(simPhase * 5.3);
+  const noise = Math.random() * 0.15;
+
+  const avg = Math.min(1, wave + beatPulse * 0.5 + noise);
+  const peak = Math.min(1, avg + beatPulse * 0.3 + Math.random() * 0.1);
+
+  return { avg, peak };
 }
 
 /**
- * 音频可视化数据轮询循环
+ * 可视化数据轮询循环
  */
 function startVisualLoop(): void {
-  const poll = () => {
-    if (!analyser || !dataArray) return;
-    analyser.getByteFrequencyData(dataArray);
+  if (visualFrameId) return;
 
-    let sum = 0;
-    let peak = 0;
-    for (let i = 0; i < dataArray.length; i++) {
-      sum += dataArray[i];
-      if (dataArray[i] > peak) peak = dataArray[i];
+  const poll = () => {
+    if (!audio || audio.paused) {
+      visualFrameId = 0;
+      return;
     }
 
-    const data: AudioVisualData = {
-      avg: sum / dataArray.length / 255,
-      peak: peak / 255,
-    };
-
+    const data = generateSimData();
     for (const listener of visualListeners) {
       listener(data);
     }
@@ -103,6 +114,13 @@ function startVisualLoop(): void {
     visualFrameId = requestAnimationFrame(poll);
   };
   visualFrameId = requestAnimationFrame(poll);
+}
+
+function stopVisualLoop(): void {
+  if (visualFrameId) {
+    cancelAnimationFrame(visualFrameId);
+    visualFrameId = 0;
+  }
 }
 
 /**
@@ -126,6 +144,7 @@ function notifyState(): void {
  * 处理播放结束
  */
 function handleEnded(): void {
+  stopVisualLoop();
   for (const listener of endedListeners) {
     listener();
   }
@@ -143,11 +162,13 @@ export function play(url: string, startTime = 0): void {
   el.play().catch(() => {
     // 自动播放被阻止，需要用户交互
   });
-  ensureAnalyser();
-  // 恢复 AudioContext（浏览器自动播放策略要求用户交互后才能 resume）
-  if (audioContext?.state === 'suspended') {
-    audioContext.resume();
-  }
+}
+
+/**
+ * 准备音频上下文（占位，保持 API 兼容）
+ */
+export function prepareAudioContext(): void {
+  // 当前版本使用模拟可视化，无需 AudioContext
 }
 
 /**
@@ -252,20 +273,7 @@ export function onEnded(listener: EndedListener): () => void {
  * 销毁播放器，释放资源
  */
 export function destroy(): void {
-  if (visualFrameId) {
-    cancelAnimationFrame(visualFrameId);
-    visualFrameId = 0;
-  }
-  if (source) {
-    source.disconnect();
-    source = null;
-  }
-  if (audioContext) {
-    audioContext.close();
-    audioContext = null;
-  }
-  analyser = null;
-  dataArray = null;
+  stopVisualLoop();
   if (audio) {
     audio.pause();
     audio.src = '';

@@ -114,6 +114,9 @@ const isProgressHover = ref(false);
 const isSeeking = ref(false);
 const titleWrapRef = ref<HTMLElement | null>(null);
 const isMarqueeActive = ref(false);
+let isSwitchingTrack = false;
+let prefetchedAudioUrl: string | null = null;
+let prefetchDoneForBvid: string | null = null;
 
 const playModeIcon = computed(() => {
   switch (mode.value) {
@@ -127,6 +130,31 @@ const playModeIcon = computed(() => {
 function platbackmode() {
   playbackmode.nextMode();
   modetxt.value = mode.value === 0 ? '列表循环' : mode.value === 2 ? '随机循环' : '单曲循环';
+}
+
+/**
+ * 预加载下一首的音频 URL（前台预加载，后台直接使用）
+ */
+async function prefetchNextTrack() {
+  if (lists.value.length === 0) return;
+  const nextIndex = mode.value === 2
+    ? Math.floor(Math.random() * lists.value.length)
+    : currentIndex.value < lists.value.length - 1
+      ? currentIndex.value + 1
+      : 0;
+  const nextTrack = lists.value[nextIndex];
+  if (!nextTrack || prefetchDoneForBvid === nextTrack.video_bvid) return;
+
+  try {
+    const info = await window.electronAPI.apiGetVideoInfo(nextTrack.video_bvid);
+    if (!info) return;
+    const audioData = await window.electronAPI.apiGetAudioUrl(nextTrack.video_bvid, info.cid);
+    if (!audioData) return;
+    prefetchedAudioUrl = audioData.audioUrl;
+    prefetchDoneForBvid = nextTrack.video_bvid;
+  } catch {
+    // 预加载失败，不影响当前播放
+  }
 }
 
 function playPrevious() {
@@ -144,6 +172,9 @@ function playNext() {
 }
 
 async function applyTrack(track: any) {
+  if (isSwitchingTrack) return;
+  isSwitchingTrack = true;
+  audioPlayer.prepareAudioContext();
   videoimg_url.value = track.video_img_url;
   videotitle.value = track.video_title;
   video_bvid.value = track.video_bvid;
@@ -154,21 +185,41 @@ async function applyTrack(track: any) {
   duration.value = end - start;
 
   try {
-    // 通过 API 获取视频信息（含 cid）
-    const info = await window.electronAPI.apiGetVideoInfo(track.video_bvid);
-    if (!info) return;
+    let audioUrl: string;
 
-    // 通过 API 获取音频流地址
-    const audioData = await window.electronAPI.apiGetAudioUrl(track.video_bvid, info.cid);
-    if (!audioData) return;
+    // 优先使用预加载的 URL（后台切换时无需 IPC）
+    if (prefetchedAudioUrl && prefetchDoneForBvid === track.video_bvid) {
+      audioUrl = prefetchedAudioUrl;
+    } else {
+      // 通过 API 获取视频信息（含 cid）
+      const info = await window.electronAPI.apiGetVideoInfo(track.video_bvid);
+      if (!info) {
+        console.error('获取视频信息失败:', track.video_bvid);
+        return;
+      }
+
+      // 通过 API 获取音频流地址
+      const audioData = await window.electronAPI.apiGetAudioUrl(track.video_bvid, info.cid);
+      if (!audioData) {
+        console.error('获取音频流失败:', track.video_bvid);
+        return;
+      }
+      audioUrl = audioData.audioUrl;
+    }
+
+    // 清除预加载缓存
+    prefetchedAudioUrl = null;
+    prefetchDoneForBvid = null;
 
     // 使用本地音频播放器播放
-    audioPlayer.play(audioData.audioUrl, start);
+    audioPlayer.play(audioUrl, start);
     audioPlayer.setVolume(volume.value / 100);
     playback_status.value = true;
     isPlaying.value = true;
   } catch (error) {
     console.error('播放失败:', error);
+  } finally {
+    isSwitchingTrack = false;
   }
 }
 
@@ -275,6 +326,7 @@ let cleanupEnded: (() => void) | null = null;
 let cleanupTogglePlay: (() => void) | null = null;
 let cleanupPlayPrevious: (() => void) | null = null;
 let cleanupPlayNext: (() => void) | null = null;
+let cleanupVisibility: (() => void) | null = null;
 
 watch([video_bvid, videotitle, videoimg_url, duration, volume], persistState, { deep: true });
 
@@ -304,7 +356,7 @@ onMounted(() => {
   restoreState();
   nextTick(checkMarqueeOverflow);
 
-  // 订阅音频播放器状态（替代 500ms 轮询）
+  // 订阅音频播放器状态
   cleanupState = audioPlayer.onStateChange((state) => {
     if (!isSeeking.value) {
       currentTime.value = Math.max(0, state.currentTime - trackStartTime.value);
@@ -312,18 +364,37 @@ onMounted(() => {
     isPlaying.value = state.playing;
     playback_status.value = state.playing;
 
-    // 检测曲目结束
-    if (state.duration > 0 && Math.abs(state.currentTime - state.duration) < 0.5) {
-      if (mode.value === 0) handleListLoop();
-      else if (mode.value === 1) resetCurrentTime();
-      else if (mode.value === 2) handleRandomLoop();
+    // 播放到一半时预加载下一首（确保后台场景也有足够时间）
+    if (state.duration > 0 && state.currentTime > state.duration * 0.5) {
+      prefetchNextTrack();
     }
+  });
+
+  // 订阅播放结束事件（ended 事件在窗口后台/minimized 时仍可靠触发）
+  cleanupEnded = audioPlayer.onEnded(() => {
+    if (mode.value === 0) handleListLoop();
+    else if (mode.value === 1) resetCurrentTime();
+    else if (mode.value === 2) handleRandomLoop();
   });
 
   // 托盘/媒体键控制
   cleanupTogglePlay = window.electronAPI.onTogglePlay(() => VideoPlaySet());
   cleanupPlayPrevious = window.electronAPI.onPlayPrevious(() => playPrevious());
   cleanupPlayNext = window.electronAPI.onPlayNext(() => playNext());
+
+  // 窗口恢复可见时，检查是否有未完成的曲目切换
+  const handleVisibility = () => {
+    if (document.visibilityState !== 'visible') return;
+    const state = audioPlayer.getState();
+    if (state.duration > 0 && state.currentTime >= state.duration - 1 && !state.playing) {
+      // 歌曲已结束但未切换（后台时 ended 事件可能丢失或 IPC 失败）
+      if (mode.value === 0) handleListLoop();
+      else if (mode.value === 1) resetCurrentTime();
+      else if (mode.value === 2) handleRandomLoop();
+    }
+  };
+  document.addEventListener('visibilitychange', handleVisibility);
+  cleanupVisibility = () => document.removeEventListener('visibilitychange', handleVisibility);
 });
 
 onUnmounted(() => {
@@ -332,6 +403,7 @@ onUnmounted(() => {
   cleanupTogglePlay?.();
   cleanupPlayPrevious?.();
   cleanupPlayNext?.();
+  cleanupVisibility?.();
 });
 </script>
 
