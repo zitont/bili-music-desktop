@@ -71,9 +71,9 @@ function createMainWindow() {
     },
   });
 
-  // 为哔哩哔哩 CDN 图片添加 Referer 头，解决 403 问题
+  // 为哔哩哔哩 CDN 添加 Referer 头，解决 403 问题
   win.webContents.session.webRequest.onBeforeSendHeaders(
-    { urls: ['*://*.hdslb.com/*'] },
+    { urls: ['*://*.hdslb.com/*', '*://*.bilivideo.com/*'] },
     (details, callback) => {
       details.requestHeaders['Referer'] = 'https://www.bilibili.com/';
       callback({ requestHeaders: details.requestHeaders });
