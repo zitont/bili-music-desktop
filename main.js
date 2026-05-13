@@ -2,20 +2,22 @@ import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
-import { createBiliWindow, createBiliWindow2 } from './windows';
-import * as dbOperations from './db';
-import { loadWindowState, saveWindowState as saveWindowStateToFile } from './main/window-state';
-import { safeExecuteJavaScript, isSafeUrl, formatMemorySize } from './main/utils';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+import { createBiliWindow, createBiliWindow2 } from './windows.js';
+import * as dbOperations from './db.js';
+import { loadWindowState, saveWindowState as saveWindowStateToFile } from './main/window-state.js';
+import { safeExecuteJavaScript, isSafeUrl, formatMemorySize } from './main/utils.js';
 import {
-  getVideoCurrentTime,
-  setPlayerVolume,
-  getVideoDuration,
-  controlPlayback,
   getVideoInfo,
-} from './main/player';
-import { AudioAnalyzer } from './main/audio-analyzer';
-import { ShortcutManager } from './main/shortcuts';
-import { TrayManager } from './main/tray';
+  getAudioStreamUrl,
+} from './main/player.js';
+import * as bilibiliApi from './main/bilibili-api.js';
+import { AudioAnalyzer } from './main/audio-analyzer.js';
+import { ShortcutManager } from './main/shortcuts.js';
+import { TrayManager } from './main/tray.js';
 
 // 窗口实例
 let mainWindow = null;
@@ -251,122 +253,45 @@ ipcMain.handle('window:close', async () => {
   app.quit();
 });
 
-// 视频播放
-ipcMain.handle('player:getCurrentTime', async (event, time) => {
+// ==================== B 站 API 接口 ====================
+
+// 视频元数据（通过 API）
+ipcMain.handle('api:getVideoInfo', async (event, bvid) => {
   try {
-    return await getVideoCurrentTime(biliWindow, time);
+    return await getVideoInfo(bvid);
   } catch (error) {
-    console.error('Error getting video current time:', error);
+    console.error('API 获取视频信息失败:', error.message);
     return null;
   }
 });
 
-ipcMain.handle('player:setVolume', async (event, volume) => {
+// 音频流地址（通过 API）
+ipcMain.handle('api:getAudioUrl', async (event, bvid, cid) => {
   try {
-    return await setPlayerVolume(biliWindow, volume);
+    return await getAudioStreamUrl(bvid, cid);
   } catch (error) {
-    console.error('Error setting volume:', error);
+    console.error('API 获取音频流失败:', error.message);
     return null;
   }
 });
 
-ipcMain.handle('player:getVideoInfo', async (event, VideoBvid) => {
-  try {
-    return await getVideoInfo(createBiliWindow2, VideoBvid);
-  } catch (error) {
-    console.error('Error getting video info:', error);
-    return null;
-  }
-});
-
-ipcMain.handle('player:getDuration', async () => {
-  try {
-    return await getVideoDuration(biliWindow);
-  } catch (error) {
-    console.error('Error getting video duration:', error);
-    return null;
-  }
-});
-
-ipcMain.handle('player:play', (event, param) => {
-  let MusicBvid;
-  let startTime = 0;
-  let volume = null;
-  if (typeof param === 'object' && param !== null) {
-    MusicBvid = param.bvid;
-    startTime = param.startTime || 0;
-    volume = param.volume != null ? param.volume : null;
-  } else {
-    MusicBvid = param;
-  }
-
-  if (biliWindow && !biliWindow.isDestroyed()) {
-    biliWindow.destroy();
-  }
-
-  audioAnalyzer.stopPolling();
-
-  biliWindow = createBiliWindow(MusicBvid);
-
-  if (biliWindow) {
-    biliWindow.webContents.on('did-finish-load', () => {
-      const code = `
-        (() => {
-          const player = document.querySelector('video');
-          if (player) {
-            setTimeout(() => {
-              player.play();
-              const st = ${JSON.stringify(startTime)};
-              if (st > 0) {
-                const trySeek = () => {
-                  if (player.readyState >= 1) {
-                    player.currentTime = st;
-                  } else {
-                    setTimeout(trySeek, 200);
-                  }
-                };
-                trySeek();
-              }
-              const vol = ${JSON.stringify(volume)};
-              if (vol != null) {
-                player.volume = Math.max(0, Math.min(1, Number(vol)));
-              }
-            }, 1000);
-            setTimeout(() => {
-              try {
-                if (!window.__audioAnalyser) {
-                  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                  const analyser = audioCtx.createAnalyser();
-                  analyser.fftSize = 256;
-                  const source = audioCtx.createMediaElementSource(player);
-                  source.connect(analyser);
-                  analyser.connect(audioCtx.destination);
-                  audioCtx.resume();
-                  window.__audioAnalyser = analyser;
-                  window.__audioBuffer = new Uint8Array(analyser.frequencyBinCount);
-                }
-              } catch(e) { }
-            }, 2000);
-          }
-        })()
-      `;
-      safeExecuteJavaScript(biliWindow, code).catch(console.error);
-
-      // 设置音频分析器窗口引用并开始轮询
-      audioAnalyzer.setWindows(mainWindow, biliWindow);
-      setTimeout(() => audioAnalyzer.startPolling(), 3000);
-    });
-  }
-
+// SESSDATA 管理
+ipcMain.handle('auth:setSessdata', (event, value) => {
+  bilibiliApi.saveSessdata(value);
   return true;
 });
 
-ipcMain.handle('player:control', async (event, action) => {
+ipcMain.handle('auth:getSessdata', () => {
+  return bilibiliApi.getSessdataStatus();
+});
+
+// 旧接口：保留兼容性，但内部改为 API 调用
+ipcMain.handle('player:getVideoInfo', async (event, VideoBvid) => {
   try {
-    return await controlPlayback(biliWindow, action);
+    return await getVideoInfo(VideoBvid);
   } catch (error) {
-    console.error('Error controlling playback:', error);
-    return false;
+    console.error('Error getting video info:', error);
+    return null;
   }
 });
 
@@ -587,6 +512,9 @@ if (!gotTheLock) {
   app.whenReady().then(async () => {
     // 初始化数据库
     initDatabase();
+
+    // 加载 SESSDATA
+    bilibiliApi.loadSessdata();
 
     // 创建主窗口
     mainWindow = createMainWindow();

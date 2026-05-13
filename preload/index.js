@@ -6,7 +6,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   WindowMax: () => ipcRenderer.invoke('window:maximize'),
   WindowClose: () => ipcRenderer.invoke('window:close'),
 
-  // 视频播放控制
+  // B 站 API 接口（新）
+  apiGetVideoInfo: (bvid) => ipcRenderer.invoke('api:getVideoInfo', bvid),
+  apiGetAudioUrl: (bvid, cid) => ipcRenderer.invoke('api:getAudioUrl', bvid, cid),
+
+  // SESSDATA 管理
+  authSetSessdata: (value) => ipcRenderer.invoke('auth:setSessdata', value),
+  authGetSessdata: () => ipcRenderer.invoke('auth:getSessdata'),
+
+  // 视频播放控制（旧接口，保留兼容）
   VideoPlaySet: (action) => ipcRenderer.invoke('player:control', action === 0 ? 'play' : 'pause'),
   VideoSetBvid: (bvid, startTime, volume) => ipcRenderer.invoke('player:play', { bvid, startTime, volume }),
   VideoCurrentTime: (time) => ipcRenderer.invoke('player:getCurrentTime', time),
@@ -40,9 +48,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getDataDirectory: () => ipcRenderer.invoke('get-data-directory'),
 
   // 主进程事件监听（托盘/媒体键）
-  onTogglePlay: (callback) => ipcRenderer.on('player:toggle', callback),
-  onPlayPrevious: (callback) => ipcRenderer.on('player:previous', callback),
-  onPlayNext: (callback) => ipcRenderer.on('player:next', callback),
+  onTogglePlay: (callback) => {
+    const handler = (_event) => callback();
+    ipcRenderer.on('player:toggle', handler);
+    return () => ipcRenderer.removeListener('player:toggle', handler);
+  },
+  onPlayPrevious: (callback) => {
+    const handler = (_event) => callback();
+    ipcRenderer.on('player:previous', handler);
+    return () => ipcRenderer.removeListener('player:previous', handler);
+  },
+  onPlayNext: (callback) => {
+    const handler = (_event) => callback();
+    ipcRenderer.on('player:next', handler);
+    return () => ipcRenderer.removeListener('player:next', handler);
+  },
 
   // 音频分析数据（用于背景波澜动画）
   onAudioData: (callback) => {

@@ -5,6 +5,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useAnimationStore } from '@/store';
+import { onVisualData } from '@/utils/audio-player.js';
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 let ctx: CanvasRenderingContext2D | null = null;
@@ -43,18 +44,34 @@ const spectrumHistory: number[][] = [];
 const MAX_RIPPLES = 30;
 const MAX_PARTICLES = 120;
 const HISTORY_LEN = 60;
+const pendingTimeouts: ReturnType<typeof setTimeout>[] = [];
 
 for (let i = 0; i < 3; i++) {
   ripples.push({ x: 0, y: 0, radius: 0, maxRadius: 0, amplitude: 0.25, speed: 0, alpha: 0 });
 }
 
+let lastThemeReadTime = 0;
+const THEME_READ_INTERVAL = 500;
+let cachedThemeR = 80, cachedThemeG = 60, cachedThemeB = 100;
+
 function readThemeColor(): void {
+  const now = performance.now();
+  if (now - lastThemeReadTime < THEME_READ_INTERVAL) {
+    themeR = cachedThemeR;
+    themeG = cachedThemeG;
+    themeB = cachedThemeB;
+    return;
+  }
+  lastThemeReadTime = now;
   const style = getComputedStyle(document.documentElement);
   const hex = style.getPropertyValue('--theme-dominant').trim();
   if (hex && hex.length >= 7) {
     themeR = parseInt(hex.slice(1, 3), 16) || 80;
     themeG = parseInt(hex.slice(3, 5), 16) || 60;
     themeB = parseInt(hex.slice(5, 7), 16) || 100;
+    cachedThemeR = themeR;
+    cachedThemeG = themeG;
+    cachedThemeB = themeB;
   }
 }
 
@@ -116,7 +133,10 @@ function drawRipple(c: CanvasRenderingContext2D, _w: number, _h: number): void {
   }
   if (isBeat) {
     const count = Math.min(Math.floor(beatEnergy * 2) + 1, 3);
-    for (let i = 0; i < count; i++) setTimeout(() => spawnRipple(beatEnergy), i * 40);
+    for (let i = 0; i < count; i++) {
+      const t = setTimeout(() => spawnRipple(beatEnergy), i * 40);
+      pendingTimeouts.push(t);
+    }
     isBeat = false;
   }
 }
@@ -359,13 +379,21 @@ onMounted(() => {
   resize();
   window.addEventListener('resize', resize);
   animFrameId = requestAnimationFrame(draw);
-  audioCleanup = window.electronAPI.onAudioData(onAudioData);
+  // 使用本地音频播放器的可视化数据（替代 IPC 轮询）
+  audioCleanup = onVisualData(onAudioData);
 });
 
 onUnmounted(() => {
   cancelAnimationFrame(animFrameId);
   window.removeEventListener('resize', resize);
   if (audioCleanup) audioCleanup();
+  ripples.length = 0;
+  particles.length = 0;
+  spectrumHistory.length = 0;
+  audioHistory.length = 0;
+  for (const t of pendingTimeouts) clearTimeout(t);
+  pendingTimeouts.length = 0;
+  ctx = null;
 });
 </script>
 

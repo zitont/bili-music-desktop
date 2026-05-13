@@ -92,6 +92,7 @@ import { ref, watch, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { useMenusStore, usePlayStore, usePlaybackMode, usePlayList } from '../../store';
 import { storeToRefs } from 'pinia';
 import { formatTime } from '../../utils/functions.js';
+import * as audioPlayer from '../../utils/audio-player.js';
 
 useMenusStore();
 const play = usePlayStore();
@@ -142,7 +143,7 @@ function playNext() {
   applyTrack(lists.value[currentIndex.value]);
 }
 
-function applyTrack(track: any) {
+async function applyTrack(track: any) {
   videoimg_url.value = track.video_img_url;
   videotitle.value = track.video_title;
   video_bvid.value = track.video_bvid;
@@ -151,65 +152,44 @@ function applyTrack(track: any) {
   trackStartTime.value = start;
   trackEndTime.value = end;
   duration.value = end - start;
-  window.electronAPI.VideoSetBvid(track.video_bvid, start, volume.value / 100);
+
+  try {
+    // 通过 API 获取视频信息（含 cid）
+    const info = await window.electronAPI.apiGetVideoInfo(track.video_bvid);
+    if (!info) return;
+
+    // 通过 API 获取音频流地址
+    const audioData = await window.electronAPI.apiGetAudioUrl(track.video_bvid, info.cid);
+    if (!audioData) return;
+
+    // 使用本地音频播放器播放
+    audioPlayer.play(audioData.audioUrl, start);
+    audioPlayer.setVolume(volume.value / 100);
+    playback_status.value = true;
+    isPlaying.value = true;
+  } catch (error) {
+    console.error('播放失败:', error);
+  }
 }
 
 function volumeChange(value: number) {
-  window.electronAPI.VideoSetVolume(value / 100).then(() => {
-    volumes.value = value;
-    volume.value = value;
-  });
+  audioPlayer.setVolume(value / 100);
+  volumes.value = value;
+  volume.value = value;
 }
 
 function VideoPlaySet() {
   if (video_bvid.value !== '') {
-    window.electronAPI.VideoPlaySet(isPlaying.value ? 1 : 0);
-    playback_status.value = !isPlaying.value;
-    isPlaying.value = !isPlaying.value;
-  }
-}
-
-function checkTrackEnd() {
-  if (Math.abs(currentTime.value - duration.value) <= 2) {
-    if (mode.value === 0) handleListLoop();
-    else if (mode.value === 1) resetCurrentTime();
-    else if (mode.value === 2) handleRandomLoop();
-  }
-}
-
-let seekTimer: ReturnType<typeof setTimeout> | null = null;
-let pollTimer: ReturnType<typeof setInterval> | null = null;
-
-function pollProgress() {
-  if (video_bvid.value === '' || isSeeking.value) return;
-  window.electronAPI.VideoCurrentTime().then((ref: number | null) => {
-    if (!isSeeking.value && ref != null) {
-      currentTime.value = Math.max(0, ref - trackStartTime.value);
-      checkTrackEnd();
-    }
-  });
-}
-
-function startPoll() {
-  stopPoll();
-  pollTimer = setInterval(pollProgress, 500);
-}
-
-function stopPoll() {
-  if (pollTimer) {
-    clearInterval(pollTimer);
-    pollTimer = null;
+    audioPlayer.togglePlay();
   }
 }
 
 function seekTo(value: number) {
   isSeeking.value = true;
   currentTime.value = value;
-  window.electronAPI.VideoCurrentTime(value + trackStartTime.value);
-  if (seekTimer) clearTimeout(seekTimer);
-  seekTimer = setTimeout(() => {
+  audioPlayer.seekTo(value + trackStartTime.value);
+  setTimeout(() => {
     isSeeking.value = false;
-    pollProgress();
   }, 400);
 }
 
@@ -220,7 +200,7 @@ function handleListLoop() {
 }
 
 function resetCurrentTime() {
-  window.electronAPI.VideoCurrentTime(trackStartTime.value);
+  audioPlayer.seekTo(trackStartTime.value);
   currentTime.value = 0;
 }
 
@@ -282,17 +262,19 @@ function restoreState() {
       duration.value = saved.duration || 0;
       trackStartTime.value = saved.trackStartTime || 0;
       trackEndTime.value = saved.trackEndTime || 0;
-      if (saved.playback_status) {
-        isPlaying.value = true;
-        playback_status.value = true;
-      }
-      const savedVolume = (saved.volume ?? 60) / 100;
-      window.electronAPI.VideoSetBvid(saved.video_bvid, saved.trackStartTime || 0, savedVolume);
+      audioPlayer.setVolume((saved.volume ?? 60) / 100);
     }
   } catch {
     localStorage.removeItem(STORAGE_KEY);
   }
 }
+
+// 监听音频播放器状态变化
+let cleanupState: (() => void) | null = null;
+let cleanupEnded: (() => void) | null = null;
+let cleanupTogglePlay: (() => void) | null = null;
+let cleanupPlayPrevious: (() => void) | null = null;
+let cleanupPlayNext: (() => void) | null = null;
 
 watch([video_bvid, videotitle, videoimg_url, duration, volume], persistState, { deep: true });
 
@@ -320,16 +302,36 @@ watch(
 
 onMounted(() => {
   restoreState();
-  startPoll();
   nextTick(checkMarqueeOverflow);
-  window.electronAPI.onTogglePlay(() => VideoPlaySet());
-  window.electronAPI.onPlayPrevious(() => playPrevious());
-  window.electronAPI.onPlayNext(() => playNext());
+
+  // 订阅音频播放器状态（替代 500ms 轮询）
+  cleanupState = audioPlayer.onStateChange((state) => {
+    if (!isSeeking.value) {
+      currentTime.value = Math.max(0, state.currentTime - trackStartTime.value);
+    }
+    isPlaying.value = state.playing;
+    playback_status.value = state.playing;
+
+    // 检测曲目结束
+    if (state.duration > 0 && Math.abs(state.currentTime - state.duration) < 0.5) {
+      if (mode.value === 0) handleListLoop();
+      else if (mode.value === 1) resetCurrentTime();
+      else if (mode.value === 2) handleRandomLoop();
+    }
+  });
+
+  // 托盘/媒体键控制
+  cleanupTogglePlay = window.electronAPI.onTogglePlay(() => VideoPlaySet());
+  cleanupPlayPrevious = window.electronAPI.onPlayPrevious(() => playPrevious());
+  cleanupPlayNext = window.electronAPI.onPlayNext(() => playNext());
 });
 
 onUnmounted(() => {
-  stopPoll();
-  if (seekTimer) clearTimeout(seekTimer);
+  cleanupState?.();
+  cleanupEnded?.();
+  cleanupTogglePlay?.();
+  cleanupPlayPrevious?.();
+  cleanupPlayNext?.();
 });
 </script>
 

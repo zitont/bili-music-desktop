@@ -1,4 +1,4 @@
-import { safeExecuteJavaScript } from './utils';
+import { safeExecuteJavaScript } from './utils.js';
 
 /**
  * 音频分析器
@@ -54,7 +54,7 @@ class AudioAnalyzer {
       } catch {
         // 静默失败 — 音频分析暂不可用
       }
-    }, 80);
+    }, 120);
   }
 
   /**

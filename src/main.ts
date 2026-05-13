@@ -1,6 +1,5 @@
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
-import naive from 'naive-ui';
 import App from './App.vue';
 import router from './router';
 import SvgIcon from './components/SvgIcon/SvgIcon.vue';
@@ -12,7 +11,6 @@ const app = createApp(App);
 
 app.use(router);
 app.use(pinia);
-app.use(naive);
 app.component('SvgIcon', SvgIcon);
 
 // 全局错误处理

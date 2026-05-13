@@ -186,7 +186,7 @@ function SearchVideo() {
     return;
   }
   window.electronAPI
-    .VideoGetinfo(form.bvid)
+    .apiGetVideoInfo(form.bvid)
     .then((data: any) => {
       if (!data) {
         message.error('未找到视频信息');

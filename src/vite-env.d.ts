@@ -16,7 +16,29 @@ interface ElectronAPI {
   WindowMax: () => Promise<void>;
   WindowClose: () => Promise<void>;
 
-  // 视频播放控制
+  // B 站 API 接口
+  apiGetVideoInfo: (bvid: string) => Promise<{
+    bvid: string;
+    videotitle: string;
+    videopic: string;
+    videoduration: number;
+    upname: string;
+    uphomepage: string;
+    cid: number;
+    pages: Array<{ cid: number; page: number; part: string; duration: number }>;
+  } | null>;
+  apiGetAudioUrl: (bvid: string, cid: number) => Promise<{
+    audioUrl: string;
+    duration: number;
+    codec: string;
+    bandwidth: number;
+  } | null>;
+
+  // SESSDATA 管理
+  authSetSessdata: (value: string) => Promise<boolean>;
+  authGetSessdata: () => Promise<{ hasSessdata: boolean }>;
+
+  // 视频播放控制（旧接口）
   VideoPlaySet: (action: number) => Promise<boolean>;
   VideoSetBvid: (bvid: string, startTime?: number, volume?: number | null) => Promise<boolean>;
   VideoCurrentTime: (time?: number) => Promise<number | null>;
@@ -57,10 +79,10 @@ interface ElectronAPI {
   // 主题设置
   themeSet: (isDark: boolean) => Promise<void>;
 
-  // 主进程事件监听
-  onTogglePlay: (callback: () => void) => void;
-  onPlayPrevious: (callback: () => void) => void;
-  onPlayNext: (callback: () => void) => void;
+  // 主进程事件监听（返回清理函数）
+  onTogglePlay: (callback: () => void) => () => void;
+  onPlayPrevious: (callback: () => void) => () => void;
+  onPlayNext: (callback: () => void) => () => void;
 
   // 音频分析数据（用于背景波澜动画）
   onAudioData: (callback: (data: { avg: number; peak: number }) => void) => () => void;

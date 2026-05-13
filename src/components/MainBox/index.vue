@@ -111,7 +111,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { setVideoBvid, VideoGetListsID } from '../../utils/electronApi.js';
+import { VideoGetListsID } from '../../utils/electronApi.js';
 import { formatTime } from '../../utils/functions.js';
 import { useMenusStore, usePlayStore, usePlayList } from '../../store';
 import { storeToRefs } from 'pinia';
@@ -119,6 +119,7 @@ import { useMessage } from 'naive-ui';
 import type { DropdownOption } from 'naive-ui';
 import EditSong from '../EditSong/index.vue';
 import type { VideoItem } from '../../types/video';
+import * as audioPlayer from '../../utils/audio-player.js';
 
 const router = useRouter();
 const message = useMessage();
@@ -151,17 +152,30 @@ function goToAdd() {
   router.push('/increase');
 }
 
-function handoffvideo(item: VideoItem, index: number) {
+async function handoffvideo(item: VideoItem, index: number) {
   const startTime = item.video_startTime || 0;
   const endTime = item.video_endtime || item.video_duration;
-  setVideoBvid(item.video_bvid, startTime, volume.value / 100);
-  window.electronAPI.VideoPlaySet(playback_status.value ? 1 : 0);
-  playback_status.value = true;
-  duration.value = endTime - startTime;
-  videotitle.value = item.video_title;
+
+  // 更新 store
   videoimg_url.value = item.video_img_url;
+  videotitle.value = item.video_title;
   video_bvid.value = item.video_bvid;
+  duration.value = endTime - startTime;
   currentIndex.value = index;
+
+  try {
+    // 通过 API 获取音频流并播放
+    const info = await window.electronAPI.apiGetVideoInfo(item.video_bvid);
+    if (!info) return;
+    const audioData = await window.electronAPI.apiGetAudioUrl(item.video_bvid, info.cid);
+    if (!audioData) return;
+    audioPlayer.play(audioData.audioUrl, startTime);
+    audioPlayer.setVolume(volume.value / 100);
+    playback_status.value = true;
+  } catch (error) {
+    console.error('播放失败:', error);
+    message.error('播放失败，请检查 SESSDATA 配置');
+  }
 }
 
 function getActionOptions(_item: VideoItem): DropdownOption[] {
